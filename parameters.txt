@@ -1,0 +1,16 @@
+
+ATAC_peaks=/mforge/research/labs/experpath/maia/m237371/mBE/HMEC1/bedprep/HMEC-ATAC_peaks.bed
+H3K4me1_peaks=/mforge/research/labs/experpath/maia/shared/mBE/HMEC/E119-H3K4me1.narrowPeak.bed
+blacklist=/mforge/research/labs/experpath/maia/m237371/public_data/Blacklist/lists/hg19-blacklist.v2.bed.gz
+ENCODE_cCRE=ENCODE_cCREs_hg19.bed
+
+H3K27ac=/mforge/research/labs/experpath/maia/shared/mBE/Encode2021/HMEC/H3K27ac.bw
+H3K4me1=/mforge/research/labs/experpath/maia/shared/mBE/Encode2021/HMEC/H3K4me1.bw
+H3K4me3=/mforge/research/labs/experpath/maia/shared/mBE/Encode2021/HMEC/H3K4me3.bw
+H2Az=/mforge/research/labs/experpath/maia/shared/mBE/HMEC/E119-H2A.Z.imputed.pval.signal.bigwig
+H3K27me3=/mforge/research/labs/experpath/maia/shared/mBE/Encode2021/HMEC/H3K27me3.bw
+mH2A1=/mforge/research/labs/experpath/maia/shared/mBE/HMEC/HMEC_m1_fold.bigWig
+mH2A2=/mforge/research/labs/experpath/maia/shared/mBE/HMEC/HMEC_m2_fold.bigWig
+CTCF=/mforge/research/labs/experpath/maia/shared/mBE/Encode2021/HMEC/CTCF.bw
+
+outdir=/mforge/research/labs/experpath/maia/m237371/mBE_code/test
