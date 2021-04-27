@@ -1,4 +1,4 @@
-# Pipeline for clustering ATAC peaks based on ChIP-seq signals of epigenetic markers
+# Pipeline for clustering regulatory elements based on open chromatin and epigenetic marks
 
 ## Requirements:
 - R 4.0.3 or higher
