@@ -8,6 +8,7 @@ args <- commandArgs(trailingOnly = TRUE)
 candidate_enhancers.bed <- args[1]
 candidates_wENCODE.bed <- args[2]
 outdir <- args[3]
+k <- args[4]
 
 setwd(outdir)
 
@@ -35,7 +36,7 @@ candidate_enhancers <- read.table(candidate_enhancers.bed) %>%
 
 mydata <- mydata %>% bind_cols(candidate_enhancers) %>% filter(encode_class != ".")
 
-km5 <- mydata %>% select(all_of(signals)) %>% kmeans(centers = 5, nstart = 20)
+km5 <- mydata %>% select(all_of(signals)) %>% kmeans(centers = k, nstart = 20)
 km5$cluster <- factor(km5$cluster)
 mydata <- mydata %>% mutate(cluster=km5$cluster)
 
@@ -128,3 +129,4 @@ plot(p6)
 plot(p7)
 plot((p8 | p9 | p10) / (p11 | p12 | as_ggplot(mylegend)))
 dev.off()
+

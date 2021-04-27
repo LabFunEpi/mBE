@@ -13,4 +13,5 @@ mH2A1=
 mH2A2=
 CTCF=
 
+k=
 outdir=
