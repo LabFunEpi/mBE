@@ -1,6 +1,6 @@
 ![image](https://user-images.githubusercontent.com/5864081/173095749-711e59c1-b70c-4bde-8b5d-4adc9217e3ad.png)
 
-Wazim Mohammed Ismail*, Amelia Mazzone*, Flavia G. Ghiraldini, Jagneet Kaur, Manvir Bains, Amik Munankarmy, Monique Bagwell, Stephanie Safgren, John Moore-Weiss, Marina Buciuc, Lynzie Shimp, Kelsey Leach, Luis F. Duarte, Chandandeep S. Nagi, Saul Carcamo, Chi-Yeh Chung, Dan Hasson, Neda Dadgar, Jian Zhong, Jeong-Heon Lee, Fergus Couch, Alexander Revzin, Tamas Ordog, Emily Bernstein, Alexandre Gaspar-Maia. MacroH2A histone variants modulate enhancer activity to repress oncogenic programs and cellular reprogramming. In Revision. [Preprint](https://doi.org/10.21203/rs.3.rs-384560/v1)
+Wazim Mohammed Ismail*, Amelia Mazzone*, Flavia G. Ghiraldini, Jagneet Kaur, Manvir Bains, Amik Munankarmy, Monique Bagwell, Stephanie Safgren, John Moore-Weiss, Marina Buciuc, Lynzie Shimp, Kelsey Leach, Luis F. Duarte, Chandandeep S. Nagi, Saul Carcamo, Chi-Yeh Chung, Dan Hasson, Neda Dadgar, Jian Zhong, Jeong-Heon Lee, Fergus Couch, Alexander Revzin, Tamas Ordog, Emily Bernstein, Alexandre Gaspar-Maia. MacroH2A histone variants modulate enhancer activity to repress oncogenic programs and cellular reprogramming. In Revision (Nature Communications). [Preprint.](https://doi.org/10.21203/rs.3.rs-384560/v1)
 
 # Pipeline for clustering regulatory elements based on open chromatin and epigenetic marks
 
