@@ -1,3 +1,5 @@
+![image](https://user-images.githubusercontent.com/5864081/173095749-711e59c1-b70c-4bde-8b5d-4adc9217e3ad.png)
+
 # Pipeline for clustering regulatory elements based on open chromatin and epigenetic marks
 
 ## Requirements:
