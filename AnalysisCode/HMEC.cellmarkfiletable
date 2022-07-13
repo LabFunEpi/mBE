@@ -1,0 +1,14 @@
+HMEC	H3K27ac	HMECenc_H3K27ac_cat.m20k1n2l30.hg19.bam	HMECenc_Input_cat.m20k1n2l30.hg19.bam
+HMEC	H3K4me1	HMECenc_H3K4me1_cat.m20k1n2l30.hg19.bam	HMECenc_Input_cat.m20k1n2l30.hg19.bam
+HMEC	H3K4me3	HMECenc_H3K4me3_cat.m20k1n2l30.hg19.bam	HMECenc_Input_cat.m20k1n2l30.hg19.bam
+HMEC	H3K27me3	HMEC_H3K27me3_trim.m20k1n2l80.hg19.bam	HMEC_Input_trim.m20k1n2l80.hg19.bam
+HMEC	CTCF	HMECenc_CTCF_cat.m20k1n2l30.hg19.bam	HMECenc_Input_cat.m20k1n2l30.hg19.bam
+HMEC	mH2A1	HMEC_m1_trim.m20k1n2l80.hg19.bam	HMEC_Input_trim.m20k1n2l80.hg19.bam
+HMEC	mH2A2	HMEC_m2_trim.m20k1n2l80.hg19.bam	HMEC_Input_trim.m20k1n2l80.hg19.bam
+HMEC	H2AZ	HMECenc_H2AZ_cat.m20k1n2l30.hg19.bam	HMECenc_Input_cat.m20k1n2l30.hg19.bam
+HMEC	H3K9ac	HMECenc_H3K9ac_cat.m20k1n2l30.hg19.bam	HMECenc_Input_cat.m20k1n2l30.hg19.bam
+HMEC	H3K9me3	HMECenc_H3K9me3_cat.m20k1n2l30.hg19.bam	HMECenc_Input_cat.m20k1n2l30.hg19.bam
+HMEC	H3K36me3	HMECenc_H3K36me3_cat.m20k1n2l30.hg19.bam	HMECenc_Input_cat.m20k1n2l30.hg19.bam
+HMEC	H3K79me2	HMECenc_H3K79me2_cat.m20k1n2l30.hg19.bam	HMECenc_Input_cat.m20k1n2l30.hg19.bam
+HMEC	H4K20me1	HMECenc_H4K20me1_cat.m20k1n2l30.hg19.bam	HMECenc_Input_cat.m20k1n2l30.hg19.bam
+

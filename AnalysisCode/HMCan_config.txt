@@ -1,0 +1,8 @@
+GCIndex /hmcan/data/GC_profile_100KbWindow_Mapp76_hg19.cnp
+genomePath /references/fastas/hg19_chromosomes/
+smallBinLength 50
+largeBinLength 100000
+PrintWig True
+blackListFile /hmcan/data/hg19-blacklist.bed
+RemoveDuplicates False
+
