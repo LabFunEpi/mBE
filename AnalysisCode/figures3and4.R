@@ -1,3 +1,101 @@
+# Run classification algorithm separately (Run mBE_pipeline.sh as per documentation) 
+# *_classes.bed obtained from classification algorithm 
+
+###########################################################################
+# Collect all signals used in classification into one single table
+
+setwd("/mforge/research/labs/experpath/maia/m237371/mBE/figures")
+# ENCODE_cCREs_mm10.tab downloaded from UCSC Genome Browser's Table Browser https://genome.ucsc.edu/cgi-bin/hgTables
+encode <- read.table("/mforge/research/labs/experpath/maia/m237371/public_data/ENCODE_cCREs_mm10.tab", skip=1, sep="\t") %>%
+    select(V4, V11) %>%
+    set_colnames(c("name", "ccre"))
+myclasses <- c("Active", "H3K4me3", "ATAConly", "Inactive", "mBE")
+
+get_signals <- function(){
+    rawdatas <- lapply(paste0(basedir, "/", signal_files), read.table, skip=3)
+    rawdatas <- lapply(rawdatas, function(x){x %>% mutate(across(everything(), ~replace_na(.x, 0)))})
+    datas <- rawdatas
+    mydata <- bind_cols(lapply(datas, function(x){x %>% rowSums(.)}))
+    colnames(mydata) <- signals
+    mydata <- mydata %>% mutate(across(everything(), function(x) {log(((x*10000)/sum(x))+0.01)}))
+    mydata <- mydata %>% mutate(across(everything(), function(x) {(x-mean(x))/sd(x)}))
+    lojed <- read.table(loj_file) %>%
+        select(V4,V10) %>%
+        set_colnames(c("peakname", "name")) %>%
+        left_join(encode) %>%
+        group_by(peakname) %>% dplyr::slice(1) %>%
+        replace_na(list(ccre = "notccre"))
+    currpeaks <- read.table(currpeaks_file) %>%
+        select(V1:V4) %>%
+        set_colnames(c("chr", "start", "end", "peakname")) %>% 
+        left_join(lojed)
+    origpeaks <- read.table(origpeaks_file) %>%
+        select(V1:V4) %>%
+        set_colnames(c("chr", "start", "end", "peakname"))
+    mydata <- mydata %>% bind_cols(currpeaks)
+    plotdata <- mydata %>% filter(ccre != "notccre")
+    classified <- read.table(paste0(basedir, "/", "classified.bed")) %>% set_colnames(c("chr", "start", "end", "peakname", "name", "ccre", "newclass"))
+    plotdata <- plotdata %>% bind_cols(classified %>% select(newclass)) %>% mutate(newclass=factor(newclass, levels = myclasses)) %>% select(-c(chr, start, end)) %>% left_join(origpeaks)
+    return(plotdata %>% select(-c(peakname, name, chr, start, end, ccre)) %>% pivot_longer(!newclass, names_to = "mark", values_to = "z"))
+    # return(plotdata %>% select(-c(peakname, name, chr, start, end, ccre)))
+}
+
+basedir <- "/mforge/research/labs/experpath/maia/m237371/mBE/DF/cCREs"
+signal_files <- c("H3K27ac", "H2Az", "H3K27me3", "mH2A1", "mH2A2", "ATAC", "H3K4me1", "H3K4me3_signal", "CTCF")
+signals <- c("H3K27ac", "H2Az", "H3K27me3", "mH2A1", "mH2A2", "ATAC", "H3K4me1", "H3K4me3", "CTCF")
+loj_file <- "/mforge/research/labs/experpath/maia/m237371/mBE/DF/bedprep/DF_loj_cCREs.bed"
+currpeaks_file <- "/mforge/research/labs/experpath/maia/m237371/mBE/DF/bedprep/DF-ATAC-outBL-resized.bed"
+origpeaks_file <- "/mforge/research/labs/experpath/maia/m237371/mBE/DF/bedprep/DF-ATAC-outBL.bed"
+DF <- get_signals()
+
+setwd("/mforge/research/labs/experpath/maia/m237371/mBE/figures")
+plotdata <- DF %>% filter(mark %in% c("H3K27ac", "H3K4me1", "H2Az", "H3K4me3", "H3K27me3", "mH2A1", "mH2A2", "CTCF")) %>%
+    mutate(mark = factor(mark, levels = c("H3K27ac", "H3K4me1", "H2Az", "H3K4me3", "H3K27me3", "mH2A1", "mH2A2", "CTCF")))
+
+plotdata1 <- plotdata %>% group_by(newclass, mark) %>% summarize(median_z = median(z)) %>%
+    mutate(newclass=as.character(newclass)) %>%
+    mutate(newclass=replace(newclass, newclass=="H3K4me3", "APL")) %>%
+    mutate(newclass=replace(newclass, newclass=="ATAConly", "ATAC-only")) %>%
+    mutate(newclass = factor(newclass, levels = rev(c("Active", "APL", "ATAC-only", "Inactive", "mBE")))) %>%
+    mutate(mark = factor(mark, levels = c("H3K4me1", "H3K27ac", "H2Az", "H3K4me3", "H3K27me3", "CTCF", "mH2A1", "mH2A2")))
+
+pdf(file='fig3b_fixed.pdf', width=4, height=3)
+p1 <- ggplot(plotdata1 %>% filter(!(mark %in% c("H2Az", "CTCF"))), aes(x = mark, y = newclass)) +
+    geom_tile(aes(fill = median_z)) +
+    # geom_point(data = plotdata1 %>% filter(notsig == "*"), shape=1, size=1) +
+    coord_equal() +
+    scale_fill_gradientn(colors = bluered(256), limits = c(-3.2, 3.2)) +
+    # scale_fill_gradient2(mid = "white", low = "blue", high = "red", limits = c(-2.05, 2.05)) +
+    guides(fill=guide_colorbar(ticks.colour = NA)) +
+    theme_cowplot() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), axis.title = element_blank(), axis.line=element_blank(), axis.ticks=element_blank(), strip.background = element_blank())
+p1
+dev.off()
+
+setwd("/data/")
+write.table(plotdata1 %>% filter(!(mark %in% c("H2Az", "CTCF"))), file = "fig3a_data2.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+plotdata1 <- plotdata %>% filter(mark == "H3K4me1") %>% select(newclass) %>% table() %>% data.frame() %>%
+    set_colnames(c("newclass", "Freq")) %>%
+    mutate(newclass=as.character(newclass)) %>%
+    mutate(newclass=replace(newclass, newclass=="H3K4me3", "APL")) %>%
+    mutate(newclass=replace(newclass, newclass=="ATAConly", "ATAC-only")) %>%
+    mutate(newclass = factor(newclass, levels = rev(c("Active", "APL", "ATAC-only", "Inactive", "mBE"))))
+
+color_key <- c(Active = "#0f9448", APL = "#e78ac3", `ATAC-only` = "#E0AC69", mBE = "#2b598b", Inactive = "#f15a2b")
+pdf(file='fig3b_bar.pdf', width=4, height=1)
+p1 <- ggplot(plotdata1, aes(x = Freq, y = "y", fill = newclass, label = Freq)) +
+    geom_bar(position="fill", stat="identity") +
+    geom_text(size = 4, position = position_fill(vjust = 0.5), color = "white") +
+    scale_x_continuous(expand = c(0,0), breaks = c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1), position = "top") + 
+    scale_fill_manual(values = color_key) +
+    theme_cowplot() + theme(legend.position = "None", axis.title.y = element_blank())
+p1
+dev.off()
+
+setwd("/data/")
+write.table(plotdata1, file = "fig3a_data1.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 ###################### Fig 3c Reprogramming factor (OSKM) binding sites enrichment #################
 
 # Get TSS annotation for mm9 genome and define 1000 bp around TSS as a region to define "active TSS"
@@ -165,6 +263,9 @@ p1 <- ggplot(dat %>% mutate(TF = factor(TF, levels = rev(c("actTSS", "Oct4", "So
     facet_grid(rows=vars(mark)) +
     theme_cowplot() + theme(legend.position = "none")
 
+setwd("/data/")
+write.table(dat, file = "suppfig3a_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 TFs <- c("Oct4", "Sox2", "Klf4", "Myc")
 marks <- c("H3K27me3", "mH2A1", "mH2A2")
 ins <- expand.grid(TFs, marks)
@@ -197,8 +298,53 @@ pdf("DF_ChIPSeq_OSKM_volcano.pdf", width=10, height=4)
 plot(p1 + p2 + plot_layout(widths = c(3, 2)))
 dev.off()
 
-########### Fig 3d (Fisher's exact test - by intersections of ChIPseq peaks from Chronis et al. Cell 2017 against classified CRE in DF ###############
-# fisherTestIntersect1c.py --tfBed cell_9383_mmc1_48h.bed --enhancerBed classified_wNoClass.short.bed --sortBy mBE --plotOrder mBE Inactive ATAConly Active H3K4me3 --trimTFNames 48h_OSKM_
+setwd("/data/")
+write.table(tests, file = "fig3c_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+
+########### Fig 3d (GAT enrichment analysis of ChIPseq peaks from Chronis et al. Cell 2017 against classified CRE in DF ###############
+## cell_9383_mmc1_48h.bed obtained from Chronis et al. Cell 2017
+# grep 48h_OSKM_Brg1 cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_Brg1.bed
+# grep 48h_OSKM_Cebpa cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_Cebpa.bed
+# grep 48h_OSKM_Cebpb cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_Cebpb.bed
+# grep 48h_OSKM_Fra1 cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_Fra1.bed
+# grep 48h_OSKM_Hdac1 cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_Hdac1.bed
+# grep 48h_OSKM_Klf4 cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_Klf4.bed
+# grep 48h_OSKM_Oct4 cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_Oct4.bed
+# grep 48h_OSKM_Runx1 cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_Runx1.bed
+# grep 48h_OSKM_Sox2 cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_Sox2.bed
+# grep 48h_OSKM_cMyc cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_cMyc.bed
+# grep 48h_OSKM_p300 cell_9383_mmc1_48h.bed | sort -k1,1 -k2,2n > 48h_OSKM_p300.bed
+
+# sort -k1,1 -k2,2n cell_9383_mmc1_48h.bed > cell_9383_mmc1_48h_sorted.bed
+# bedtools merge -i cell_9383_mmc1_48h_sorted.bed > cell_9383_mmc1_48h_merged.bed
+
+# cat <(echo 'track name="Brg1"') 48h_OSKM_Brg1.bed <(echo 'track name="Cebpa"') 48h_OSKM_Cebpa.bed <(echo 'track name="Cebpb"') 48h_OSKM_Cebpb.bed <(echo 'track name="Fra1"') 48h_OSKM_Fra1.bed <(echo 'track name="Hdac1"') 48h_OSKM_Hdac1.bed <(echo 'track name="Klf4"') 48h_OSKM_Klf4.bed <(echo 'track name="Oct4"') 48h_OSKM_Oct4.bed <(echo 'track name="Runx1"') 48h_OSKM_Runx1.bed <(echo 'track name="Sox2"') 48h_OSKM_Sox2.bed <(echo 'track name="cMyc"') 48h_OSKM_cMyc.bed <(echo 'track name="p300"') 48h_OSKM_p300.bed > DF_TFBS_tracks.bed
+
+# gat-run.py --with-segment-tracks --segments=DF_TFBS_tracks.bed --annotations=DF_classified_4col.bed --workspace=cell_9383_mmc1_48h_merged.bed --num-samples=1000 --log=1 1> DF_TFBS_tracks.GAT 2> err &
+
+setwd("/mforge/research/labs/experpath/maia/m237371/mBE/GAT")
+color_key <- c(Active = "#0f9448", H3K4me3 = "#e78ac3", ATAConly = "#E0AC69", Inactive = "#f15a2b", mBE = "#2b598b")
+
+out <- read.table("DF_TFBS_tracks.GAT", header = TRUE, na.strings = "na")
+out <- out %>% mutate(track = factor(track, levels = out %>% filter(annotation == "mBE") %>% select(track, l2fold) %>% arrange(l2fold) %>% select(track) %>% unlist() %>% unname()), annotation = factor(annotation, levels = c("mBE", "Inactive", "ATAConly", "Active", "H3K4me3")))
+pdf(file='gat_DF_TFBS_hm_temp.pdf', width=5, height=2)
+p1 <- ggplot(out, aes(x = track, y = annotation)) +
+    geom_tile(aes(fill = l2fold)) +
+    coord_equal() +
+    # scale_fill_gradientn(colors = bluered(256)) +
+    scale_fill_gradient2(low = bluered(256)[[1]], mid = "white", high = bluered(256)[[256]], midpoint = 0) +
+    scale_x_discrete(position = "top") +
+    guides(fill=guide_colorbar(ticks.colour = NA)) +
+    theme_cowplot() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0), axis.title = element_blank(), axis.line=element_blank(), axis.ticks=element_blank())
+p1
+dev.off()
+
+out %<>% mutate(signif = qvalue < 0.05) %>% select(track, annotation, l2fold, signif)
+setwd("/data/")
+write.table(out, file = "fig3d_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 
 ########### Fig 4c (PCA of H3K37ac signals from breast cancer subtypes) #######
 
@@ -211,76 +357,76 @@ dev.off()
 # plotPCA -in mBE.npz -o mBE_PCA.pdf -l MCF10A MCF7 ZR751 MB361 UACC812 SKBR3 AU565 HCC1954 MB231 MB436 MB468 HCC1937 --outFileNameData mBE_PCA.tab &
 # plotPCA -in ccres.npz -o ccres_PCA.pdf -l MCF10A MCF7 ZR751 MB361 UACC812 SKBR3 AU565 HCC1954 MB231 MB436 MB468 HCC1937 --outFileNameData ccre_PCA.tab &
 
-############ Fig 4d (Fisher's exact test of presence of breast cancer GWAS variants in classified CRE in HMEC) ##########
+################ GARFIELD (Fig 4d Enrichment of GWAS variants in classified CRE in HMEC) ###################
 
-# Download GWAS data for breast cancer: NHGRI-EBI GWAS Catalog: https://www.ebi.ac.uk/gwas/home; EFO ID: EFO_0000305
-# We use data downloaded on 2021-06-14
+# cd /softwares/
+# wget https://www.ebi.ac.uk/birney-srv/GARFIELD/package-v2/garfield-v2.tar.gz
+# wget -bqc https://www.ebi.ac.uk/birney-srv/GARFIELD/package-v2/garfield-data.tar.gz -o garfield-data.tar.gz &
 
-library(splitstackshape) 
-gwas <- read.table("gwas-association-downloaded_2022-04-11-EFO_0006861-withChildTraits.tsv", skip = 1, sep = "\t", quote = "") %>% 
-    select(V22) %>% 
-    cSplit('V22', ';') %>%
-    unlist() %>% unname()
-gwas <- unique(gwas[!is.na(gwas)])
-setdiff(gwas, union(str_subset(gwas, "^rs"), str_subset(gwas, "^chr")))
-write.table(as.data.frame(str_subset(gwas, "^rs")), file = "gwas_rs.txt", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+# ## Create pval data from summary statistics (See documentation)
+# wget https://bcac.ccge.medschl.cam.ac.uk/files/oncoarray_bcac_public_release_oct17.txt.gz
+# vi /softwares/garfield-v2/garfield-create-input-gwas.sh
+# # chrcol=3, poscol=4, pvalcol=10
+# # TRAITNAME=BC_GCST004988
+# # GWASFILENAME=oncoarray_bcac_public_release_oct17.txt
+# /softwares/garfield-v2/garfield-create-input-gwas.sh
 
-gwas_chr <- data.frame(x = str_subset(gwas, "^chr")) %>% 
-    separate(x, c("chr", "start")) %>% 
-    mutate(start = as.numeric(start)) %>%
-    mutate(start = start - 1) %>%
-    mutate(end = start + 1) %>% 
-    unite("name", c(chr, end), sep = "-", remove = FALSE) %>% 
-    relocate(name, .after = end)
-write.table(gwas_chr, file = "gwas_chr.txt", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+# ## Create annotation data encoded in format described in documentation
+# mkdir /temp/UK10K_variants 
+# for i in {1..22} 'X'
+# do
+    # awk -v i=$i '{print "chr"i"\t"$1-1"\t"$1}' /softwares/garfield-data/maftssd/chr${i} > /temp/UK10K_variants/chr${i}.bed
+# done
 
-# Lift Over to hg19
-# https://genome.ucsc.edu/cgi-bin/hgLiftOver
-# lifted_over.bed
+# cat /temp/UK10K_variants/chr{1..22}.bed /temp/UK10K_variants/chrX.bed >> /temp/UK10K_variants.bed
 
-# Download variant database to get the positions for all variants with variant id
-# http://grch37.ensembl.org/biomart/martview/7d7265ec7122686b3585e4b3e33f6bee
-# mart_export.txt
+# bedtools intersect -loj -a /temp/UK10K_variants.bed -b /temp/HMEC_classified.bed > /temp/HMEC_annotations.bed
+# awk '{if ($10 == ".") print $1" "$3" 00000"; else if ($10 == "Active") print $1" "$3" 10000"; else if ($10 == "H3K4me3") print $1" "$3" 01000"; else if ($10 == "ATAConly") print $1" "$3" 00100"; else if ($10 == "Inactive") print $1" "$3" 00010"; else if ($10 == "mBE") print $1" "$3" 00001"; else print "ERROR"} ' /temp/HMEC_annotations.bed > /temp/HMEC_annotations.encoded
 
-gwas_rs <- read.table("mart_export.txt", skip = 1, sep = "\t")
-gwas_rs <- gwas_rs %>% filter(!grepl("^H", V3)) %>% 
-    select(-V2) %>% set_colnames(c("name", "chr", "start", "end")) %>% 
-    mutate(chr = paste0("chr", chr)) %>% relocate(name, .after = end)
+# bedtools intersect -loj -a /temp/UK10K_variants.bed -b /temp/MCF7_classified.bed > /temp/MCF7_annotations.bed
+# awk '{if ($10 == ".") print $1" "$3" 00000"; else if ($10 == "Active") print $1" "$3" 10000"; else if ($10 == "H3K4me3") print $1" "$3" 01000"; else if ($10 == "ATAConly") print $1" "$3" 00100"; else if ($10 == "Inactive") print $1" "$3" 00010"; else if ($10 == "mBE") print $1" "$3" 00001"; else print "ERROR"} ' /temp/MCF7_annotations.bed > /temp/MCF7_annotations.encoded
 
-gwas_rs_clean <- gwas_rs %>% filter(start > end) %>% relocate(start, .after = "end") %>% set_colnames(c("chr", "start", "end", "name")) %>%
-    bind_rows(gwas_rs %>% filter(start == end) %>% mutate(start = start - 1)) %>%
-    bind_rows(gwas_rs %>% filter(start < end))
+# bedtools intersect -loj -a /temp/UK10K_variants.bed -b /temp/231L_classified.bed > /temp/231L_annotations.bed
+# awk '{if ($10 == ".") print $1" "$3" 0000"; else if ($10 == "Active") print $1" "$3" 1000"; else if ($10 == "H3K4me3") print $1" "$3" 0100"; else if ($10 == "ATAConly") print $1" "$3" 0010"; else if ($10 == "Inactive") print $1" "$3" 0001"; else print "ERROR"} ' /temp/231L_annotations.bed > /temp/231L_annotations.encoded
 
-gwas_chr <- read.table("gwas2022_liftedOver.bed", sep = "\t") %>%
-    set_colnames(c("chr", "start", "end", "name"))
+# paste -d" " /temp/HMEC_annotations.encoded /temp/MCF7_annotations.encoded /temp/231L_annotations.encoded | awk -F" " '{print $1" "$2" "$3 $6 $9}' > /temp/breast_annotations.encoded
 
-gwas <- bind_rows(gwas_rs_clean, gwas_chr)
-write.table(gwas, file = "gwas1_hg19.bed", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+# for i in {1..22} 'X'
+# do
+    # grep "chr${i} " /temp/breast_annotations.encoded | cut -d" " -f2- > /softwares/garfield-data/annotation-breast/chr${i}
+# done
+# vi /softwares/garfield-data/annotation-breast/link_file.txt # Create link_file (see documentation)
 
-# python fisherTestGWAS.py
-# python fisherTestGWASByClass.py --allEnhancers --cellLine "HMEC" --pCrit 0.001
-# python fisherTestGWASByClass.py --allEnhancers --cellLine "MCF7" --pCrit 0.001
-# python fisherTestGWASByClass.py --allEnhancers --cellLine "231L" --pCrit 0.001
-# python plotByGWASVolcano.py --allEnhancers --plotRange 3.5 --pCrit 0.001 --yRange 15
+# vi /softwares/garfield-v2/garfield
+# # INPUTNAME=BC_GCST004988
+# # DATADIR=/softwares/garfield-data
+# /softwares/garfield-v2/garfield
+# # Output in /softwares/garfield-data/output/BC_GCST004988/garfield.test.BC_GCST004988.out
 
+setwd("/softwares/garfield-data/output/BC_GCST004988/")
+color_key <- c(Active = "#0f9448", APL = "#e78ac3", ATAConly = "#E0AC69", mBE = "#2b598b", Inactive = "#f15a2b")
 
+tab1 <- read.table("garfield.test.BC_GCST004988.out", header = TRUE) %>% 
+    separate(col = "Annotation", sep = "_", into = c(NA, "Annotation")) %>%
+    mutate(Annotation = factor(Annotation, levels = names(color_key))) %>% 
+    mutate(Celltype = factor(Celltype, levels = c("HMEC", "MCF7", "231L"))) %>% 
+    mutate(PThresh = factor(PThresh))
 
+pdf(file = "garfield.test.BC_GCST004988.pdf", width = 5, height = 4)
+p1 <- ggplot(tab1 %>% filter(PThresh == "5e-08"), aes(x = log2(OR), y = -log10(Pvalue), shape = Celltype, color = Annotation)) +
+    geom_point(size = 2) +
+    geom_hline(yintercept=-log10(0.05), linetype="dashed") +
+    geom_vline(xintercept=0, linetype="dashed") +
+    scale_shape_manual(values=c(16, 4, 15)) +
+    scale_color_manual(values=color_key) +
+    # lims(x = c(-3, 3)) +
+    theme_cowplot()
+p1
+dev.off()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+tab1 %<>% filter(PThresh == "5e-08") %>% mutate(log2OR = log2(OR), neg_log10_pval = -log10(Pvalue)) %>% select(c(Celltype, Annotation, log2OR, neg_log10_pval))
+setwd("/data/")
+write.table(tab1, file = "fig4d_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 
 

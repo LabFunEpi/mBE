@@ -1,3 +1,48 @@
+########### Fig 5a ##############
+
+setwd("/mBE/MCF7/cCREs")
+library(ReMapEnrich) 
+Active <- bedToGranges("Active_3col.bed")
+Inactive <- bedToGranges("Inactive_3col.bed")
+H3K4me3 <- bedToGranges("H3K4me3_3col.bed")
+ATAConly <- bedToGranges("ATAConly_3col.bed")
+mBE <- bedToGranges("mBE_3col.bed")
+remapCatalog <- bedToGranges("/public_data/remap2022/remap2022_MCF-7_all_macs2_hg19_v1_0.bed")
+
+en_Active <- enrichment(Active, remapCatalog, chromSizes = loadChromSizes("hg19"), byChrom = TRUE)
+en_Inactive <- enrichment(Inactive, remapCatalog, chromSizes = loadChromSizes("hg19"), byChrom = TRUE)
+en_H3K4me3 <- enrichment(H3K4me3, remapCatalog, chromSizes = loadChromSizes("hg19"), byChrom = TRUE)
+en_ATAConly <- enrichment(ATAConly, remapCatalog, chromSizes = loadChromSizes("hg19"), byChrom = TRUE)
+en_mBE <- enrichment(mBE, remapCatalog, chromSizes = loadChromSizes("hg19"), byChrom = TRUE)
+
+en_list <- list(en_Active, en_H3K4me3, en_ATAConly, en_Inactive, en_mBE)
+names(en_list) <- c("Active", "H3K4me3", "ATAConly", "Inactive", "mBE")
+en <- bind_rows(en_list, .id = "class")
+en %<>% filter(q.value < 0.05) %>% 
+    mutate(l2eff = log2(effect.size)) %>%
+    select(class, category, effect.size) %>% pivot_wider(names_from = "class", values_from = "effect.size") %>% 
+    drop_na() %>%
+    pivot_longer(!category, names_to = "class", values_to = "effect.size")
+plotorder <- en %>% select(class, category, effect.size) %>% pivot_wider(names_from = "class", values_from = "effect.size") %>%
+    arrange(-mBE) %>% select(category) %>% unlist() %>% unname()
+en %<>% mutate(category = factor(category, levels = plotorder), class = factor(class, levels = c("H3K4me3", "Active", "ATAConly", "Inactive", "mBE")))
+
+write.table(en, file = "ReMapEnrich_results.tsv", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+en <- read.table("ReMapEnrich_results.tsv", sep = "\t", header = TRUE)
+plotorder <- en %>% select(class, category, effect.size) %>% pivot_wider(names_from = "class", values_from = "effect.size") %>%
+    arrange(-mBE) %>% select(category) %>% unlist() %>% unname()
+en %<>% mutate(category = factor(category, levels = plotorder), class = factor(class, levels = c("H3K4me3", "Active", "ATAConly", "Inactive", "mBE")))
+
+pdf(file='MCF7_scATAC_ReMapEnrich.pdf', width=28, height=6)
+p1 <- ggplot(en, aes(x = category, y = class)) +
+    geom_tile(aes(fill = effect.size)) +
+    scale_fill_viridis_c(option = "inferno") +
+    scale_x_discrete(position = "top") +
+    guides(fill=guide_colorbar(ticks.colour = NA)) +
+    theme_cowplot() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0), axis.title = element_blank(), axis.line=element_blank(), axis.ticks=element_blank())
+p1
+dev.off()
 
 ######## Cell Ranger Runs #########
 
@@ -120,8 +165,9 @@ theme_set(theme_cowplot())
 
 sobj_sub <- readRDS("aggr_filtered_sub.rds")
 
-############ Fig 5d (UMAPS) ###########
+############ Supp Fig 5d (UMAPS) ###########
 DefaultAssay(sobj_sub) <- "ATAC"
+Idents(sobj_sub) <- "seurat_clusters"
 sobj_sub@meta.data <- sobj_sub@meta.data %>% separate(col = "sample", into = c("replicate", "genotype"), sep = "_", remove = FALSE)
 pdf(file='MCF7_scATAC_umap.pdf', width=5, height=2.5)
 ggplot(data.frame(sobj_sub[["umap"]][[]], genotype = factor(sobj_sub$genotype, levels = c("WT", "KO")), clust = Idents(sobj_sub)), aes(x=UMAP_1, y=UMAP_2, color = clust)) + 
@@ -135,6 +181,10 @@ ggplot(data.frame(sobj_sub[["umap"]][[]], genotype = factor(sobj_sub$genotype, l
     guides(colour = guide_legend(override.aes = list(size=5))) +
     theme(axis.ticks = element_blank(), axis.text = element_blank(), axis.line = element_blank(), axis.title = element_blank(), strip.background = element_rect(fill = "white"))
 dev.off()
+
+setwd("/data/")
+tab <- data.frame(sobj_sub[["umap"]][[]], genotype = factor(sobj_sub$genotype, levels = c("WT", "KO")), clust = Idents(sobj_sub))
+write.table(tab, file = "suppfig5d_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 ############ Fig 5e (Bubble Plot) #######
 
@@ -174,7 +224,7 @@ write.table(KO_cells, file = "KO_Cells.csv", sep = "\t", row.names = FALSE, col.
 # # python runBEDMergePlot2.py --buildStats --natCommCells --intersectPeaks --outfile bubblePlotStats.pkl --csvOut bubblePlotStats.csv
 # python runBEDMergePlot2.py --infile bubblePlotStats.pkl --leaveNegatives
 
-############ Supp Fig 6a,b,c (QC plots) #############
+############ Supp Fig 5a,b,c (QC plots) #############
 myElbowPlot <- function(object, i, j, reduction = 'pca') {
   data.use <- Stdev(object = object, reduction = reduction)
   if (length(x = data.use) == 0) {
@@ -196,20 +246,44 @@ myElbowPlot <- function(object, i, j, reduction = 'pca') {
       y = stdev
     ) +
     theme_cowplot()
+  # write.table(data.frame(dims = i:j, stdev = data.use[i:j]), file = "suppfig5c_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
   return(list(p))
 }
+
 Idents(sobj_sub) <- ""
-pdf(file='MCF7_scATAC_qc1.pdf', width=10, height=5)
-p1 <- wrap_plots(lapply(c("Rep1_WT", "Rep2_WT", "Rep1_KO", "Rep2_KO"),  function(x){TSSPlot(subset(sobj_sub, sample == x)) + NoLegend() + ggtitle(x)}))
-p2 <- wrap_plots(lapply(c("Rep1_WT", "Rep2_WT", "Rep1_KO", "Rep2_KO"),  function(x){FragmentHistogram(subset(sobj_sub, sample == x)) + NoLegend() + ggtitle(x)})) 
-p1 | p2
+pdf(file='MCF7_scATAC_qc1.pdf', width=6, height=5)
+p1 <- wrap_plots(lapply(c("Rep1_WT", "Rep2_WT", "Rep1_KO", "Rep2_KO"),  function(x){TSSPlot(subset(sobj_sub, sample == x)) + theme(axis.title = element_blank()) + NoLegend() + ggtitle(x)}), nrow = 1)
+p2 <- wrap_plots(lapply(c("Rep1_WT", "Rep2_WT", "Rep1_KO", "Rep2_KO"),  function(x){FragmentHistogram(subset(sobj_sub, sample == x)) + theme(axis.title = element_blank()) + NoLegend() + ggtitle(x)}), nrow = 1) 
+p1 / p2
 dev.off()
+
+
+md <- sobj_sub@meta.data %>% mutate(genotype = factor(genotype, levels = c("WT", "KO")))
+pdf("MCF7_scATAC_qc_by_cluster.pdf", width = 7, height = 6)
+p1 <- ggplot(md, aes(x = seurat_clusters, y = total)) + geom_boxplot(outlier.size = 0.1) + stat_compare_means(aes(label = ..p.signif..))
+p2 <- ggplot(md, aes(x = seurat_clusters, y = pct_reads_in_peaks)) + geom_boxplot(outlier.size = 0.1) + stat_compare_means(aes(label = ..p.signif..))
+p3 <- ggplot(md, aes(x = seurat_clusters, y = peak_region_fragments)) + geom_boxplot(outlier.size = 0.1) + stat_compare_means(aes(label = ..p.signif..))
+p4 <- ggplot(md, aes(x = seurat_clusters, y = TSS.enrichment)) + geom_boxplot(outlier.size = 0.1) + stat_compare_means(aes(label = ..p.signif..))
+p5 <- ggplot(md, aes(x = seurat_clusters, y = nucleosome_signal)) + geom_boxplot(outlier.size = 0.1) + stat_compare_means(aes(label = ..p.signif..))
+
+p6 <- ggplot(md, aes(x = genotype, y = total)) + geom_boxplot(outlier.size = 0.1) + stat_compare_means(aes(label = ..p.signif..))
+p7 <- ggplot(md, aes(x = genotype, y = pct_reads_in_peaks)) + geom_boxplot(outlier.size = 0.1) + stat_compare_means(aes(label = ..p.signif..))
+p8 <- ggplot(md, aes(x = genotype, y = peak_region_fragments)) + geom_boxplot(outlier.size = 0.1) + stat_compare_means(aes(label = ..p.signif..))
+p9 <- ggplot(md, aes(x = genotype, y = TSS.enrichment)) + geom_boxplot(outlier.size = 0.1) + stat_compare_means(aes(label = ..p.signif..))
+p10 <- ggplot(md, aes(x = genotype, y = nucleosome_signal)) + geom_boxplot(outlier.size = 0.1) + stat_compare_means(aes(label = ..p.signif..))
+
+plot(((p1 | p2 | p3 | p4 | p5) / (p6 | p7 | p8 | p9 | p10)) & theme(legend.position = "None", axis.title.x = element_blank()))
+dev.off()
+
+md %<>% select(seurat_clusters, genotype, total, pct_reads_in_peaks, peak_region_fragments, TSS.enrichment, nucleosome_signal)
+setwd("/data/")
+write.table(md, file = "suppfig5b_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 pdf(file='MCF7_scATAC_qc2.pdf', width=4.5, height=5)
 myElbowPlot(sobj_sub, i = 2, j = 30, reduction = "lsi")
 dev.off()
 
-##### Supp Fig 6d,e (Cutsite distributions, Cicero) #############
+##### Cutsite distributions (Fig 5d), Cicero (Supp Fig 5e) #############
 
 WT <- subset(sobj_sub, subset = genotype == "WT")
 KO <- subset(sobj_sub, subset = genotype == "KO")
@@ -307,6 +381,10 @@ pdf("MCF7_scATAC_violins.pdf", width=8, height=5)
 plot((p1 | p2 | p3) + plot_layout(widths = c(3, 3, 2)))
 dev.off()
 
+setwd("/data/")
+write.table(plotdata, file = "fig5d_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+write.table(conns_per_peak, file = "suppfig5e_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 ########## Interaction analysis ##############
 
 setwd("/mBE/MCF7/scATAC_hg38_stencil/")
@@ -369,6 +447,9 @@ grid.col = c(Active = "#0f9448", H3K4me3 = "#e78ac3", ATAConly = "#E0AC69", mBE 
 temp <- chordDiagram(summ %>% select(from, to, count) %>% set_colnames(c("from", "to", "value")), grid.col = grid.col, transparency = ifelse(summ$genotype == "KO", 0.2, 0.7))
 dev.off()
 
+setwd("/data/")
+write.table(summ, file = "fig5f_data1.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 myclasses <- c("Active", "H3K4me3", "ATAConly", "Inactive", "mBE")
 summ <- plyr::count(WT_conns_3 %>% select(V1, V2)) %>% rename(WT = freq) %>%
     left_join(plyr::count(KO_conns_3 %>% select(V1, V2)) %>% rename(KO = freq)) %>%
@@ -383,6 +464,9 @@ ggplot(summ, aes(y = type, x = FC)) +
     scale_x_continuous(expand = expansion(mult = c(0, .1))) +
     theme_cowplot() + theme(axis.title.y = element_blank())
 dev.off()
+
+setwd("/data/")
+write.table(summ, file = "fig5f_data2.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 ############# Supp Fig 6f (Comparison of interactions; WT vs KO) ################
 
@@ -429,6 +513,9 @@ ggplot(summ, aes(y = genotype, x = Freq, fill = genotype)) +
     scale_x_continuous(expand = expansion(mult = c(0, .1))) +
     theme_cowplot() + theme(axis.title = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank())
 dev.off()
+
+setwd("/data/")
+write.table(summ, file = "suppfig5f_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 ######### Supp Fig 6g (Gene Ontology analysis of promoter-enhancer interactions) ###########
 
@@ -478,6 +565,17 @@ ggplot(gost_all, aes(x = newclass, y = term_name, color = -log10(p_value))) +
     theme_light() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), axis.title = element_blank())
 dev.off()
 
+gost_all <- gost_Active %>% mutate(newclass = "Active") %>%
+    bind_rows(gost_ATAConly %>% mutate(newclass = "ATAConly")) %>%
+    bind_rows(gost_Inactive %>% mutate(newclass = "Inactive")) %>%
+    bind_rows(gost_mBE %>% mutate(newclass = "mBE")) %>%
+    relocate(newclass, .before = term_name)
+write.table(gost_all, file = "gost_results.tsv", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+gost_all <- read.table("gost_results.tsv", sep = "\t", header = TRUE)
+setwd("/data/")
+write.table(gost_all %>% mutate(neg_log10_pval = -log10(p_value)) %>% select(newclass, term_name, neg_log10_pval, intersection_size), file = "suppfig5g_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 ######### Supp Fig 6h - interactions (UCSC Browser Tracks) ###########
 
 WT_conns_4 <- WT_conns_2 %>% filter((c1 == "H3K4me3" & c2 != "H3K4me3") | (c1 != "H3K4me3" & c2 == "H3K4me3")) %>%
@@ -509,137 +607,4 @@ write.table(peaks_track, file = "peaks_track.tsv", sep = "\t", row.names = FALSE
 # Add the following header lines to the tsv file, and add Custom Track to UCSC Genome Browser for visualization: 
 # track name="MCF7 CRE" description="MCF7 CRE" visibility=2 itemRgb="On" visibility=dense
 # browser position chr20:50,631,851-50,853,470
-
-###################### Prepare Seurat Object - followed by QC filters and sub-sampling of cells (called peaks) ##################
-setwd("/mBE/MCF7/scATAC_hg38")
-h5 <- "/mBE/MCF7/scATAC_hg38/aggr/outs/filtered_peak_bc_matrix.h5"
-frag.file <- "/mBE/MCF7/scATAC_hg38/aggr/outs/fragments.tsv.gz"
-metadata_csv_1 <- "/mBE/MCF7/scATAC_hg38/Rep1_WT/outs/singlecell.csv"
-metadata_csv_2 <- "/mBE/MCF7/scATAC_hg38/Rep1_KO/outs/singlecell.csv"
-metadata_csv_3 <- "/mBE/MCF7/scATAC_hg38/Rep2_WT/outs/singlecell.csv"
-metadata_csv_4 <- "/mBE/MCF7/scATAC_hg38/Rep2_KO/outs/singlecell.csv"
-
-atac_counts <- Read10X_h5(h5)
-metadata_1 <- read.csv(file = metadata_csv_1, header = TRUE, row.names = 1) %>% filter(is__cell_barcode == 1) %>% rownames_to_column("barcode") %>% separate(col = "barcode", into = c("barcode", NA), sep = "-") %>% mutate(barcode = paste0(barcode, "-1"))
-metadata_2 <- read.csv(file = metadata_csv_2, header = TRUE, row.names = 1) %>% filter(is__cell_barcode == 1) %>% rownames_to_column("barcode") %>% separate(col = "barcode", into = c("barcode", NA), sep = "-") %>% mutate(barcode = paste0(barcode, "-2"))
-metadata_3 <- read.csv(file = metadata_csv_3, header = TRUE, row.names = 1) %>% filter(is__cell_barcode == 1) %>% rownames_to_column("barcode") %>% separate(col = "barcode", into = c("barcode", NA), sep = "-") %>% mutate(barcode = paste0(barcode, "-3"))
-metadata_4 <- read.csv(file = metadata_csv_4, header = TRUE, row.names = 1) %>% filter(is__cell_barcode == 1) %>% rownames_to_column("barcode") %>% separate(col = "barcode", into = c("barcode", NA), sep = "-") %>% mutate(barcode = paste0(barcode, "-4"))
-metadata <- data.frame(barcode = colnames(atac_counts)) %>% left_join(bind_rows(metadata_1, metadata_2, metadata_3, metadata_4)) %>% column_to_rownames("barcode")
-
-grange.counts <- StringToGRanges(rownames(atac_counts), sep = c(":", "-"))
-grange.use <- seqnames(grange.counts) %in% standardChromosomes(grange.counts)
-atac_counts <- atac_counts[as.vector(grange.use), ]
-
-chrom_assay <- CreateChromatinAssay(counts = atac_counts, sep = c(":", "-"), genome = 'hg38', fragments = frag.file, min.cells = 10, annotation = annotations)
-sobj <- CreateSeuratObject(counts = chrom_assay, assay = "ATAC", meta.data = metadata)
-
-sobj <- NucleosomeSignal(object = sobj)
-sobj <- TSSEnrichment(object = sobj, fast = FALSE)
-
-DefaultAssay(sobj) <- "ATAC"
-sobj <- sobj %>% RunTFIDF() %>% FindTopFeatures(min.cutoff = 'q0') %>% RunSVD() %>% RunUMAP(reduction = 'lsi', dims = 2:50)
-
-mapping <- data.frame(sampleno = c("1", "2", "3", "4"), sample = c("Rep1_WT", "Rep1_KO", "Rep2_WT", "Rep2_KO"))
-all.metadata <- sobj@meta.data %>% rownames_to_column("barcode") %>% separate(col = "barcode", into = c("barcode", "sampleno"), sep = "-") %>% left_join(mapping)
-sobj$sample <- all.metadata$sample
-saveRDS(sobj, "aggr_seuratobj.rds")
-
-sobj_filtered <- subset(sobj, subset = nFeature_ATAC > 200 & TSS.enrichment > 1)
-ncells <- min(table(sobj_filtered$sample))
-sub_cells <- c(
-    sample(sobj_filtered@meta.data %>% filter(sample == "Rep1_WT") %>% rownames(), size = ncells, replace=F),
-    sample(sobj_filtered@meta.data %>% filter(sample == "Rep1_KO") %>% rownames(), size = ncells, replace=F),
-    sample(sobj_filtered@meta.data %>% filter(sample == "Rep2_WT") %>% rownames(), size = ncells, replace=F),
-    sample(sobj_filtered@meta.data %>% filter(sample == "Rep2_KO") %>% rownames(), size = ncells, replace=F)
-)
-sobj_sub <- sobj_filtered[,sub_cells]
-
-DefaultAssay(sobj_sub) <- "ATAC"
-sobj_sub <- sobj_sub %>% RunTFIDF() %>% FindTopFeatures(min.cutoff = 'q0') %>% RunSVD() %>% RunUMAP(reduction = 'lsi', dims = 2:20) %>% FindNeighbors(reduction = 'lsi', dims = 2:20)
-sobj_sub <- sobj_sub %>% FindClusters(algorithm = 3, resolution = 0.15)
-
-saveRDS(sobj_sub, "aggr_filtered_sub.rds")
-
-DefaultAssay(sobj_sub) <- 'ATAC'
-gene.activities <- GeneActivity(sobj_sub, extend.downstream = 2000)
-sobj_sub[['RNA']] <- CreateAssayObject(counts = gene.activities)
-sobj_sub <- NormalizeData(
-  object = sobj_sub,
-  assay = 'RNA',
-  normalization.method = 'LogNormalize',
-  scale.factor = median(sobj_sub$nCount_RNA)
-)
-
-genes <- c("SOX9", "PARD6B", "TBX2", "HES1", "TRIM56", "VGF")
-plotdata <- data.frame(t(sobj_sub[["RNA"]]@data[genes,]), check.names = FALSE) %>%
-    bind_cols(sobj_sub@meta.data %>% select(genotype, seurat_clusters)) %>%
-    pivot_longer(all_of(genes), names_to = "gene", values_to = "expr") %>%
-    mutate(genotype = factor(genotype, levels = c("WT", "KO")))
-sobj_sub$celltype.status <- paste(sobj_sub$seurat_clusters, sobj_sub$genotype, sep = ".")
-sobj_sub_avg <- AverageExpression(sobj_sub, assays = c("RNA"), group.by = "celltype.status", return.seurat = TRUE)
-# sobj_sub_avg <- AverageExpression(sobj_sub, assays = c("RNA"), group.by = "genotype", return.seurat = TRUE)
-mu <- data.frame(sobj_sub_avg[["RNA"]]@data, check.names = FALSE) %>%
-    rownames_to_column("gene") %>% 
-    pivot_longer(!gene, names_to = c("seurat_clusters", "genotype"), values_to = "expr", names_sep = "\\.") %>%
-    # pivot_longer(!gene, names_to = "genotype", values_to = "expr") %>%
-    mutate(genotype = factor(genotype, levels = c("WT", "KO")))
-# Idents(sobj_sub) <- "genotype"
-# brackets <- FindMarkers(sobj_sub, assay = "RNA", features = genes, min.cells.group = 0, min.cells.feature = 0, logfc.threshold = 0, ident.1 = "KO", ident.2 = "WT", min.pct = 0) %>% rownames_to_column("gene")
-sobj_sub$seurat_clusters.genotype <- paste(sobj_sub$seurat_clusters, sobj_sub$genotype, sep = ".")
-Idents(sobj_sub) <- "seurat_clusters.genotype"
-celltypes <- levels(sobj_sub$seurat_clusters)
-degs <- lapply(
-    celltypes, 
-    FUN = function(celltype){
-        temp1 <- FindMarkers(sobj_sub, assay = "RNA", features = genes, min.cells.group = 0, min.cells.feature = 0, logfc.threshold = 0, ident.1 = paste0(celltype, ".KO"), ident.2 = paste0(celltype, ".WT"), min.pct = 0) %>% rownames_to_column("gene")
-    }
-)
-names(degs) <- celltypes
-brackets <- bind_rows(degs, .id = "seurat_clusters")
-brackets <- brackets %>% mutate(sig = case_when(p_val_adj <= 0.0001 ~ "****", p_val_adj <= 0.001 ~ "***", p_val_adj <= 0.01 ~ "**", p_val_adj <= 0.05 ~ "*", TRUE ~ "ns"))
-
-pdf("MCF7_scATAC_gene_activities.pdf", width=12, height=12)
-plots <- lapply(genes, function(curgene){
-    temp1 <- plotdata %>% filter(gene == curgene)
-    temp2 <- mu %>% filter(gene == curgene)
-    temp3 <- brackets %>% filter(gene == curgene)
-    return(ggplot(data = temp1, aes(x = genotype, y = expr)) +
-    geom_violin(aes(fill = genotype)) +
-    # ggrastr::rasterise(geom_jitter(aes(color = sample), size=0.2, stroke=0.1, shape=16), dpi = 400) +
-    geom_point(data = temp2, mapping = aes(x = genotype, y = expr), size=1.5, color="black") +
-    geom_bracket(data = temp3, mapping = aes(label = sig), xmin = "WT", xmax = "KO", y.position = temp1 %>% select(expr) %>% max()) +
-    # coord_cartesian(ylim = c(0, 0.5)) +
-    facet_grid(cols = vars(seurat_clusters), switch="both") +
-    ggtitle(curgene) +
-    ylab("LogNormalized Expression") +
-    theme_cowplot() + theme(legend.position = "none", axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), axis.title.x = element_blank(), plot.title = element_text(face = "italic"))
-)})
-wrap_plots(plots, nrow = 2)
-dev.off()
-
-
-
-pdf("MCF7_scATAC_gene_activities1.pdf", width=10, height=12)
-DefaultAssay(sobj_sub) <- 'RNA'
-FeaturePlot(
-  object = sobj_sub,
-  features = c("TBX2", "SOX9", "HES1"),
-  split.by = "genotype",
-  pt.size = 0.1,
-  max.cutoff = 'q95',
-  order = TRUE
-)
-dev.off()
-
-
-
-
-
-
-
-
-
-
-
-
 

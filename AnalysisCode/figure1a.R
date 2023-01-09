@@ -359,65 +359,93 @@ HepG2_bed <- HepG2_bed %>% select(V1:V4) %>% set_colnames(c("chr", "start", "end
     mutate(state = as.integer(state)) %>% mutate(state = factor(state, levels = 1:25))
 HepG2_states <- HepG2_bed %>% select(state, len) %>% group_by(state) %>% summarize_all(sum)
 
-# Mann-Whitney test with Bonferroni correction to test for significance of enrichment
-combos <- expand.grid(as.character(1:25), marks)
+# One-sided Mann-Whitney test with Bonferroni correction to test for significance of enrichment of macro histone variants
+combos <- expand.grid(as.character(1:25), c("mH2A1", "mH2A2"))
 combos_split <- split(combos, seq(nrow(combos)))
 get_tests <- function(combo){
-    print(paste0(as.character(combo$Var1), " ", as.character(combo$Var2)))
-    x <- curr %>% filter(state == as.integer(as.character(combo$Var1))) %>% select(combo$Var2) %>% unlist() %>% unname()
-    y <- curr %>% filter(state != as.integer(as.character(combo$Var1))) %>% select(combo$Var2) %>% unlist() %>% unname()
-    p <- wilcox.test(x = x, y = y)$p.value
+    x <- curr %>% filter(state == as.integer(as.character(combo$Var1))) %>% select(combo$Var2) %>% drop_na() %>% unlist() %>% unname()
+    y <- curr %>% filter(state != as.integer(as.character(combo$Var1))) %>% select(combo$Var2) %>% drop_na() %>% unlist() %>% unname()
+    p <- wilcox.test(x = x, y = y, alternative = "greater")$p.value
     padj <- p * 400 # Bonferroni correction
-    return(padj >= 0.05)
+    if(padj < 0.05) {print(paste0(as.character(combo$Var1), " ", as.character(combo$Var2)))}
+    return(padj < 0.05)
 }
 curr <- HMEC1
-HMEC_insignif <- unname(unlist(lapply(combos_split, get_tests)))
+HMEC_signif <- unname(unlist(lapply(combos_split, get_tests)))
 curr <- NHM1
-NHM_insignif <- unname(unlist(lapply(combos_split, get_tests)))
+NHM_signif <- unname(unlist(lapply(combos_split, get_tests)))
 curr <- HepG2_1
-HepG2_insignif <- unname(unlist(lapply(combos_split, get_tests)))
-
-insignif <- bind_rows(list(HMEC = combos[HMEC_insignif,], NHM = combos[NHM_insignif,], HepG2 = combos[HepG2_insignif,]), .id = "cell")
-write.table(insignif, file = "fig1a_stats.tab", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+HepG2_signif <- unname(unlist(lapply(combos_split, get_tests)))
+signi <- bind_rows(list(HMEC = combos[HMEC_signif,], NHM = combos[NHM_signif,], HepG2 = combos[HepG2_signif,]), .id = "cell")
+write.table(signi, file = "fig1a_stats_signif.tab", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
 
 # Plot heatmaps
-notsigtab <- read.table("fig1a_stats.tab")
+signitab <- read.table("fig1a_stats_signif.tab")
 HMEC1_medians <- HMEC1 %>% group_by(state) %>% summarize_all(median, na.rm = TRUE)
 pdf("fig1a-1.pdf", width=8, height=10)
-notsig <- notsigtab %>% 
+signi <- signitab %>% 
     set_colnames(c("CellLine", "state", "mark")) %>% 
     filter(CellLine == "HMEC") %>% 
     select(-CellLine) %>% 
-    mutate(notsig = "o", state = factor(state, levels = 1:25))
-df <- HMEC1_medians %>% pivot_longer(!state, names_to="mark", values_to="median") %>% left_join(notsig) %>% mutate(notsig = replace_na(notsig, ""))
-m <- df %>% select(-notsig) %>% pivot_wider(names_from="mark", values_from="median") %>% select(-state) %>% as.matrix()
-mp <- df %>% select(-median) %>% pivot_wider(names_from="mark", values_from="notsig") %>% select(-state) %>% as.matrix()
+    mutate(markit = "*", state = factor(state, levels = 1:25))
+df <- HMEC1_medians %>% pivot_longer(!state, names_to="mark", values_to="median") %>% left_join(signi) %>% mutate(markit = replace_na(markit, ""))
+m <- df %>% select(-markit) %>% pivot_wider(names_from="mark", values_from="median") %>% select(-state) %>% as.matrix()
+mp <- df %>% select(-median) %>% pivot_wider(names_from="mark", values_from="markit") %>% select(-state) %>% as.matrix()
 heatmap.2(m, col=bluered(256), scale='column',key=T,keysize=1, trace="none", cellnote = mp, notecol="black", cexRow=1, cexCol=1,symkey=T,symbreaks=T, Colv=TRUE, Rowv = FALSE, dendrogram = "column", margins = c(6, 10), labRow = paste0(1:25, ", len = ", prettyNum(HMEC_states$len, format="d", big.mark=",")))
 dev.off()
 
 NHM1_medians <- NHM1 %>% group_by(state) %>% summarize_all(median, na.rm = TRUE)
 pdf("fig1a-2.pdf", width=8, height=10)
-notsig <- notsigtab %>% 
+signi <- signitab %>% 
     set_colnames(c("CellLine", "state", "mark")) %>% 
     filter(CellLine == "NHM") %>% 
     select(-CellLine) %>% 
-    mutate(notsig = "o", state = factor(state, levels = 1:25))
-df <- NHM1_medians %>% pivot_longer(!state, names_to="mark", values_to="median") %>% left_join(notsig) %>% mutate(notsig = replace_na(notsig, ""))
-m <- df %>% select(-notsig) %>% pivot_wider(names_from="mark", values_from="median") %>% select(-state) %>% as.matrix()
-mp <- df %>% select(-median) %>% pivot_wider(names_from="mark", values_from="notsig") %>% select(-state) %>% as.matrix()
+    mutate(markit = "*", state = factor(state, levels = 1:25))
+df <- NHM1_medians %>% pivot_longer(!state, names_to="mark", values_to="median") %>% left_join(signi) %>% mutate(markit = replace_na(markit, ""))
+m <- df %>% select(-markit) %>% pivot_wider(names_from="mark", values_from="median") %>% select(-state) %>% as.matrix()
+mp <- df %>% select(-median) %>% pivot_wider(names_from="mark", values_from="markit") %>% select(-state) %>% as.matrix()
 heatmap.2(m, col=bluered(256), scale='column',key=T,keysize=1, trace="none", cellnote = mp, notecol="black", cexRow=1, cexCol=1,symkey=T,symbreaks=T, Colv=TRUE, Rowv = FALSE, dendrogram = "column", margins = c(6, 10), labRow = paste0(1:25, ", len = ", prettyNum(NHM_states$len, format="d", big.mark=",")))
 dev.off()
 
 HepG2_1_medians <- HepG2_1 %>% group_by(state) %>% summarize_all(median, na.rm = TRUE)
 pdf("fig1a-3.pdf", width=8, height=10)
-notsig <- notsigtab %>% 
+signi <- signitab %>% 
     set_colnames(c("CellLine", "state", "mark")) %>% 
     filter(CellLine == "HepG2") %>% 
     select(-CellLine) %>% 
-    mutate(notsig = "o", state = factor(state, levels = 1:25))
-df <- HepG2_1_medians %>% pivot_longer(!state, names_to="mark", values_to="median") %>% left_join(notsig) %>% mutate(notsig = replace_na(notsig, ""))
-m <- df %>% select(-notsig) %>% pivot_wider(names_from="mark", values_from="median") %>% select(-state) %>% as.matrix()
-mp <- df %>% select(-median) %>% pivot_wider(names_from="mark", values_from="notsig") %>% select(-state) %>% as.matrix()
+    mutate(markit = "*", state = factor(state, levels = 1:25))
+df <- HepG2_1_medians %>% pivot_longer(!state, names_to="mark", values_to="median") %>% left_join(signi) %>% mutate(markit = replace_na(markit, ""))
+m <- df %>% select(-markit) %>% pivot_wider(names_from="mark", values_from="median") %>% select(-state) %>% as.matrix()
+mp <- df %>% select(-median) %>% pivot_wider(names_from="mark", values_from="markit") %>% select(-state) %>% as.matrix()
 heatmap.2(m, col=bluered(256), scale='column',key=T,keysize=1, trace="none", cellnote = mp, notecol="black", cexRow=1, cexCol=1,symkey=T,symbreaks=T, Colv=TRUE, Rowv = FALSE, dendrogram = "column", margins = c(6, 10), labRow = paste0(1:25, ", len = ", prettyNum(HepG2_states$len, format="d", big.mark=",")))
 dev.off()
+
+# Save the data for plotting
+HMEC1_medians <- HMEC1 %>% group_by(state) %>% summarize_all(median, na.rm = TRUE)
+signi <- signitab %>% 
+    set_colnames(c("CellLine", "state", "mark")) %>% 
+    filter(CellLine == "HMEC") %>% 
+    select(-CellLine) %>% 
+    mutate(markit = "True", state = factor(state, levels = 1:25))
+df1 <- HMEC1_medians %>% pivot_longer(!state, names_to="mark", values_to="median") %>% left_join(signi) %>% mutate(markit = replace_na(markit, "False"))
+
+NHM1_medians <- NHM1 %>% group_by(state) %>% summarize_all(median, na.rm = TRUE)
+signi <- signitab %>% 
+    set_colnames(c("CellLine", "state", "mark")) %>% 
+    filter(CellLine == "NHM") %>% 
+    select(-CellLine) %>% 
+    mutate(markit = "True", state = factor(state, levels = 1:25))
+df2 <- NHM1_medians %>% pivot_longer(!state, names_to="mark", values_to="median") %>% left_join(signi) %>% mutate(markit = replace_na(markit, "False"))
+
+HepG2_1_medians <- HepG2_1 %>% group_by(state) %>% summarize_all(median, na.rm = TRUE)
+signi <- signitab %>% 
+    set_colnames(c("CellLine", "state", "mark")) %>% 
+    filter(CellLine == "HepG2") %>% 
+    select(-CellLine) %>% 
+    mutate(markit = "True", state = factor(state, levels = 1:25))
+df3 <- HepG2_1_medians %>% pivot_longer(!state, names_to="mark", values_to="median") %>% left_join(signi) %>% mutate(markit = replace_na(markit, "False"))
+df <- bind_rows(list(HMEC = df1, NHM = df2, HepG2 = df3), .id = "CellLine")
+
+setwd("/data/")
+write.table(df, file = "fig1a_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 

@@ -82,8 +82,9 @@ HepG2 <- get_signals()
 all_signals <- bind_rows(list(HMEC = HMEC, NHM = NHM, MCF7 = MCF7, `231L` = v231L, HepG2 = HepG2), .id = "CellLine")
 write.table(all_signals, file = "all_signals.tab", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
 
-#########################################  Fig 1d and Supp Fig 1d  ###########################################################
+#########################################  Fig 1c and Supp Fig 1b ###########################################################
 
+setwd("/mBE/")
 all_signals <- read.table(file = "all_signals.tab")
 colnames(all_signals) <- c("CellLine", "newclass", "mark", "z")
 plotdata <- all_signals %>% filter(!(mark %in% c("ATAC", "H4K12acVeh", "H4K12acE2", "H4K12ac"))) %>% 
@@ -118,17 +119,39 @@ plotdata1 <- plotdata %>% group_by(CellLine, newclass, mark) %>% summarize(media
     mutate(CellLine = factor(CellLine, levels = c("HMEC", "NHM", "MCF7", "HepG2"))) %>%
     mutate(mark = factor(mark, levels = c("H3K4me1", "H3K27ac", "H2Az", "H3K4me3", "H3K27me3", "CTCF", "mH2A1", "mH2A2")))
 
-pdf(file='fig1d.pdf', width=8, height=3)
-p1 <- ggplot(plotdata1, aes(x = mark, y = newclass)) +
-    facet_grid(cols = vars(CellLine), scales = "free_x") +
+pdf(file='fig1c.pdf', width=8, height=3)
+p1 <- ggplot(plotdata1 %>% filter(!(mark %in% c("H2Az", "CTCF"))), aes(x = mark, y = newclass)) +
+    facet_grid(cols = vars(CellLine)) +
     geom_tile(aes(fill = median_z)) +
-    geom_point(data = plotdata1 %>% filter(notsig == "*"), shape=1, size=1) +
-    # coord_equal() +
-    scale_fill_gradient2(mid = "lightgray", low = "blue", high = "red", limits = c(-2.05, 2.05)) +
+    coord_equal() +
+    scale_fill_gradientn(colors = bluered(256), limits = c(-2.05, 2.05)) +
+    guides(fill=guide_colorbar(ticks.colour = NA)) +
     theme_cowplot() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), axis.title = element_blank(), axis.line=element_blank(), axis.ticks=element_blank(), strip.background = element_blank())
 p1
 dev.off()
+
+write.table(plotdata1 %>% select(-notsig) %>% filter(!(mark %in% c("H2Az", "CTCF"))), file = "fig1c_data1.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+plotdata1 <- plotdata %>% filter(mark == "H3K4me1") %>% select(CellLine, newclass) %>% table() %>% data.frame() %>% filter(CellLine != "231L") %>%
+    mutate(newclass=as.character(newclass)) %>%
+    mutate(newclass=replace(newclass, newclass=="H3K4me3", "APL")) %>%
+    mutate(newclass=replace(newclass, newclass=="ATAConly", "ATAC-only")) %>%
+    mutate(newclass = factor(newclass, levels = rev(c("Active", "APL", "ATAC-only", "Inactive", "mBE")))) %>%
+    mutate(CellLine = factor(CellLine, levels = rev(c("HMEC", "NHM", "MCF7", "HepG2"))))
+
+color_key <- c(Active = "#0f9448", APL = "#e78ac3", `ATAC-only` = "#E0AC69", mBE = "#2b598b", Inactive = "#f15a2b")
+pdf(file='fig1b_bar.pdf', width=9, height=2)
+p1 <- ggplot(plotdata1, aes(x = Freq, y = CellLine, fill = newclass, label = Freq)) +
+    geom_bar(position="fill", stat="identity") +
+    geom_text(size = 4, position = position_fill(vjust = 0.5), color = "white") +
+    scale_x_continuous(expand = c(0,0), breaks = c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1), position = "top") + 
+    scale_fill_manual(values = color_key) +
+    theme_cowplot() + theme(legend.position = "None", axis.title.y = element_blank())
+p1
+dev.off()
+
+write.table(plotdata1, file = "fig1c_data2.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 plotdata1 <- plotdata %>% filter(CellLine != "231L") %>%
     mutate(newclass=replace(newclass, newclass=="H3K4me3", "APL")) %>%
@@ -136,7 +159,7 @@ plotdata1 <- plotdata %>% filter(CellLine != "231L") %>%
     mutate(newclass = factor(newclass, levels = c("Active", "APL", "ATAC-only", "Inactive", "mBE"))) %>%
     mutate(CellLine = factor(CellLine, levels = c("HMEC", "NHM", "MCF7", "HepG2"))) %>%
     mutate(mark = factor(mark, levels = c("H3K4me1", "H3K27ac", "H2Az", "H3K4me3", "H3K27me3", "CTCF", "mH2A1", "mH2A2")))
-pdf(file='fig1d-supp.pdf', width=12, height=10)
+pdf(file='fig1b-supp.pdf', width=12, height=10)
 ggplot(plotdata1, aes(x = mark, y = z)) +
     facet_grid(cols = vars(newclass), rows = vars(CellLine)) +
     geom_boxplot(outlier.alpha = 0.1, outlier.shape = NA) +
@@ -145,7 +168,9 @@ ggplot(plotdata1, aes(x = mark, y = z)) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
 
-############ Fig 1e and Supp Fig 2a and 2b ###########################
+write.table(plotdata1, file = "suppfig1b_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+############ Fig 1e and Supp Fig 1c ###########################
 
 # *.tab.gz files from computeMatrix command used in mBE_pipeline.sh for HMEC
 # DeepTools plotHeatmap is used for plotting heatmaps
@@ -162,60 +187,111 @@ dev.off()
 # plotHeatmap -m DNase.clust.tab.gz --colorList 'white,blue' --sortRegions keep -out DNase.pdf --samplesLabel DNase
 # plotHeatmap -m DNAM.clust.tab.gz --colorList 'white,blue' --sortRegions keep -out DNAM.pdf --samplesLabel '5mC'
 # plotHeatmap -m DNAM5hmC.clust.tab.gz --colorList 'white,blue' --sortRegions keep -out DNAM5hmC.pdf --samplesLabel '5hmC'
-# plotHeatmap -m H3K36me3.tab.gz --colorList 'white,blue' --sortRegions keep -out H3K36me3.pdf --samplesLabel H3K36me3
+# plotHeatmap -m H3K36me3.clust.tab.gz --colorList 'white,blue' --sortRegions keep -out H3K36me3.pdf --samplesLabel H3K36me3
 # plotHeatmap -m H2BK12ac.clust.tab.gz --colorList 'white,blue' --sortRegions keep -out H2BK12ac.pdf --samplesLabel H2BK12ac
 # plotHeatmap -m H2BK120ac.clust.tab.gz --colorList 'white,blue' --sortRegions keep -out H2BK120ac.pdf --samplesLabel H2BK120ac
 
-############ Fig 1f and Supp Fig 1c (Homer annotation of classified CRE) #################
+############ Fig 1d and Fig 3b (GAT) #################
 
-HMEC <- read.table("HMEC_classes.bed") %>% set_colnames(c("chr", "start", "end", "peakname", "name", "ccre", "newclass"))
-write.table(HMEC %>% select(chr, start, end, peakname) %>% mutate(strand = "."), file = "HMEC.classified.homer.bed", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-MCF7 <- read.table("MCF7_classes.bed") %>% set_colnames(c("chr", "start", "end", "peakname", "name", "ccre", "newclass"))
-write.table(MCF7 %>% select(chr, start, end, peakname) %>% mutate(strand = "."), file = "MCF7.classified.homer.bed", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-NHM <- read.table("NHM_classes.bed") %>% set_colnames(c("chr", "start", "end", "peakname", "name", "ccre", "newclass"))
-write.table(NHM %>% select(chr, start, end, peakname) %>% mutate(strand = "."), file = "NHM.classified.homer.bed", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-HepG2 <- read.table("HepG2_classes.bed") %>% set_colnames(c("chr", "start", "end", "peakname", "name", "ccre", "newclass"))
-write.table(HepG2 %>% select(chr, start, end, peakname) %>% mutate(strand = "."), file = "HepG2.classified.homer.bed", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-DF <- read.table("DF_classes.bed") %>% set_colnames(c("chr", "start", "end", "peakname", "name", "ccre", "newclass"))
-write.table(DF %>% select(chr, start, end, peakname) %>% mutate(strand = "."), file = "DF.classified.homer.bed", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+# cd /softwares/homer/4.11/data/genomes/hg19/annotations/basic
+# cat protein-coding.ann.txt promoters.ann.txt introns.ann.txt tts.ann.txt intergenic.ann.txt > /mBE/GAT/hg19_annotations_basic.txt
+# cd /softwares/homer/4.11/data/genomes/mm9/annotations/basic
+# cat protein-coding.ann.txt promoters.ann.txt introns.ann.txt tts.ann.txt intergenic.ann.txt > /mBE/GAT/mm9_annotations_basic.txt
 
-# cd /mBE/figures
-# annotatePeaks.pl HMEC.classified.homer.bed hg19 -annStats HMEC.annStats > HMEC.ann 2> 2 &
-# annotatePeaks.pl MCF7.classified.homer.bed hg19 -annStats MCF7.annStats > MCF7.ann 2> 2 &
-# annotatePeaks.pl NHM.classified.homer.bed hg19 -annStats NHM.annStats > NHM.ann 2> 2 &
-# annotatePeaks.pl HepG2.classified.homer.bed hg19 -annStats HepG2.annStats > HepG2.ann 2> 2 &
-# annotatePeaks.pl DF.classified.homer.bed mm9 -annStats DF.annStats > DF.ann 2> 2 &
+# cd /mBE/GAT/
+# cut -f2,3,4,6 hg19_annotations_basic.txt | awk 'BEGIN{OFS="\t";}$2>$3{tmp=$2;$2=$3;$3=tmp} 1' | awk '{ if (($2 >= 0) && ($3 >= 0)) { print } }' | sort -k1,1 -k2,2n | uniq > hg19_annotations_basic.bed
+# cut -f2,3,4,6 mm9_annotations_basic.txt | awk 'BEGIN{OFS="\t";}$2>$3{tmp=$2;$2=$3;$3=tmp} 1' | awk '{ if (($2 >= 0) && ($3 >= 0)) { print } }' | sort -k1,1 -k2,2n | uniq > mm9_annotations_basic.bed
 
-annlevels <- c("promoter-TSS", "TTS", "5' UTR", "exon", "intron", "3' UTR", "Intergenic", "non-coding")
+# cat hg19_annotations_basic.bed | awk '{count[$4]++} END {for (word in count) print word, count[word]}'
+# cat hg19_annotations_basic.bed | awk '{count[$4]+=$3-$2} END {for (word in count) print word, count[word]}'
 
-ann <- mapply(
-    function(annFile, classified){
-        read.table(annFile, sep = "\t", skip = 1, quote = "", comment.char = "") %>% 
-            select(V1, V8) %>% 
-            set_colnames(c("peakname", "annotation")) %>%
-            separate(annotation, c("annotation", "throw"), sep = " \\(") %>%
-            select(-throw) %>%
-            mutate(annotation = factor(annotation, levels = annlevels)) %>%
-            left_join(classified %>% select(peakname, newclass))
-    },
-    c("HMEC.ann", "MCF7.ann", "NHM.ann", "HepG2.ann", "DF.ann"),
-    list(HMEC, MCF7, NHM, HepG2, DF), SIMPLIFY = FALSE
-)
-names(ann) <- c("HMEC", "MCF7", "NHM", "HepG2", "DF")
-ann <- bind_rows(ann, .id = "cellline")
-ann <- ann %>% 
-    mutate(cellline = factor(cellline, levels = c("HMEC", "MCF7", "NHM", "HepG2", "DF"))) %>%
-    mutate(newclass = factor(newclass, levels = c("Active", "H3K4me3", "ATAConly", "Inactive", "mBE"))) %>%
-    mutate(annotation = factor(annotation, levels = annlevels))
-# anntable <- data.frame(table(ann %>% select(cellline, annotation, newclass))) %>% mutate(cellline = factor(cellline, levels = c("HMEC", "MCF7", "NHM", "HepG2", "DF")))
+# cut -f2,3,4,6 /softwares/homer/4.11/data/genomes/hg19/annotations/basic/cpgIsland.ann.txt | awk 'BEGIN{OFS="\t";}$2>$3{tmp=$2;$2=$3;$3=tmp} 1' | awk '{ if (($2 >= 0) && ($3 >= 0)) { print } }' | sort -k1,1 -k2,2n | uniq > cpgIsland.ann.bed
+# cut -f2,3,4,6 /softwares/homer/4.11/data/genomes/mm9/annotations/basic/cpgIsland.ann.txt | awk 'BEGIN{OFS="\t";}$2>$3{tmp=$2;$2=$3;$3=tmp} 1' | awk '{ if (($2 >= 0) && ($3 >= 0)) { print } }' | sort -k1,1 -k2,2n | uniq > mm9_cpgIsland.ann.bed
 
-library(ggpie)
+# grep "Active" HMEC_classes.bed > HMEC_Active.bed
+# grep "H3K4me3" HMEC_classes.bed > HMEC_APL.bed
+# grep "ATAConly" HMEC_classes.bed > HMEC_ATAConly.bed
+# grep "Inactive" HMEC_classes.bed > HMEC_Inactive.bed
+# grep "mBE" HMEC_classes.bed > HMEC_mBE.bed
+# grep "Active" NHM_classes.bed > NHM_Active.bed
+# grep "H3K4me3" NHM_classes.bed > NHM_APL.bed
+# grep "ATAConly" NHM_classes.bed > NHM_ATAConly.bed
+# grep "Inactive" NHM_classes.bed > NHM_Inactive.bed
+# grep "mBE" NHM_classes.bed > NHM_mBE.bed
+# grep "Active" MCF7_classes.bed > MCF7_Active.bed
+# grep "H3K4me3" MCF7_classes.bed > MCF7_APL.bed
+# grep "ATAConly" MCF7_classes.bed > MCF7_ATAConly.bed
+# grep "Inactive" MCF7_classes.bed > MCF7_Inactive.bed
+# grep "mBE" MCF7_classes.bed > MCF7_mBE.bed
+# grep "Active" HepG2_classes.bed > HepG2_Active.bed
+# grep "H3K4me3" HepG2_classes.bed > HepG2_APL.bed
+# grep "ATAConly" HepG2_classes.bed > HepG2_ATAConly.bed
+# grep "Inactive" HepG2_classes.bed > HepG2_Inactive.bed
+# grep "mBE" HepG2_classes.bed > HepG2_mBE.bed
+# grep "Active" DF_classes.bed > DF_Active.bed
+# grep "H3K4me3" DF_classes.bed > DF_APL.bed
+# grep "ATAConly" DF_classes.bed > DF_ATAConly.bed
+# grep "Inactive" DF_classes.bed > DF_Inactive.bed
+# grep "mBE" DF_classes.bed > DF_mBE.bed
 
-plots <- lapply(c("HMEC", "MCF7", "NHM", "HepG2", "DF"), function(x){if (x != "DF"){ggpie(ann %>% filter(cellline == x), annotation, newclass, nrow=1, label.size=0, border.color="white") + theme(legend.position = "none") + ggtitle(x)}else{ggpie(ann %>% filter(cellline == x), annotation, newclass, nrow=1, label.size=0, border.color="white") + theme(legend.position = "bottom") + ggtitle(x)}})
+# # hg19_map_contigs.bed and mm9_map_contigs.bed downloaded from UCSC Genome Browser
+# cut -f1,2,3 hg19_map_contigs.bed | awk 'BEGIN{OFS="\t";}{print $1,$2,$3,"ws"}' > hg19_ws.bed
+# cut -f1,2,3 mm9_map_contigs.bed | awk 'BEGIN{OFS="\t";}{print $1,$2,$3,"ws"}' > mm9_ws.bed
 
-pdf(file='homer_pies.pdf', width=12, height=12)
-wrap_plots(plots, ncol = 1)
+# cat <(echo 'track name="Active"') HMEC_Active.bed <(echo 'track name="APL"') HMEC_APL.bed <(echo 'track name="ATAConly"') HMEC_ATAConly.bed <(echo 'track name="Inactive"') HMEC_Inactive.bed <(echo 'track name="mBE"') HMEC_mBE.bed > HMEC_tracks.bed
+# cat <(echo 'track name="Active"') NHM_Active.bed <(echo 'track name="APL"') NHM_APL.bed <(echo 'track name="ATAConly"') NHM_ATAConly.bed <(echo 'track name="Inactive"') NHM_Inactive.bed <(echo 'track name="mBE"') NHM_mBE.bed > NHM_tracks.bed
+# cat <(echo 'track name="Active"') MCF7_Active.bed <(echo 'track name="APL"') MCF7_APL.bed <(echo 'track name="ATAConly"') MCF7_ATAConly.bed <(echo 'track name="Inactive"') MCF7_Inactive.bed <(echo 'track name="mBE"') MCF7_mBE.bed > MCF7_tracks.bed
+# cat <(echo 'track name="Active"') HepG2_Active.bed <(echo 'track name="APL"') HepG2_APL.bed <(echo 'track name="ATAConly"') HepG2_ATAConly.bed <(echo 'track name="Inactive"') HepG2_Inactive.bed <(echo 'track name="mBE"') HepG2_mBE.bed > HepG2_tracks.bed
+# cat <(echo 'track name="Active"') DF_Active.bed <(echo 'track name="APL"') DF_APL.bed <(echo 'track name="ATAConly"') DF_ATAConly.bed <(echo 'track name="Inactive"') DF_Inactive.bed <(echo 'track name="mBE"') DF_mBE.bed > DF_tracks.bed
+
+# gat-run.py --with-segment-tracks --segments=HMEC_tracks.bed --annotations=hg19_annotations_basic.bed --workspace=hg19_ws.bed --num-samples=1000 --isochore-file=cpgIsland.ann.bed --log=1 1> HMEC_tracks.GAT 2> err &
+# gat-run.py --with-segment-tracks --segments=NHM_tracks.bed --annotations=hg19_annotations_basic.bed --workspace=hg19_ws.bed --num-samples=1000 --isochore-file=cpgIsland.ann.bed --log=2 1> NHM_tracks.GAT 2> err &
+# gat-run.py --with-segment-tracks --segments=MCF7_tracks.bed --annotations=hg19_annotations_basic.bed --workspace=hg19_ws.bed --num-samples=1000 --isochore-file=cpgIsland.ann.bed --log=3 1> MCF7_tracks.GAT 2> err &
+# gat-run.py --with-segment-tracks --segments=HepG2_tracks.bed --annotations=hg19_annotations_basic.bed --workspace=hg19_ws.bed --num-samples=1000 --isochore-file=cpgIsland.ann.bed --log=4 1> HepG2_tracks.GAT 2> err &
+
+# gat-run.py --with-segment-tracks --segments=DF_tracks.bed --annotations=mm9_annotations_basic.bed --workspace=mm9_ws.bed --num-samples=1000 --isochore-file=mm9_cpgIsland.ann.bed --log=4 1> DF_tracks.GAT 2> err &
+
+setwd("/mBE/GAT")
+color_key <- c(Active = "#0f9448", APL = "#e78ac3", ATAConly = "#E0AC69", Inactive = "#f15a2b", mBE = "#2b598b")
+
+files <- paste0(c("HMEC", "NHM", "MCF7", "HepG2"), "_tracks.GAT")
+temp <- lapply(files, function(x){read.table(x, header = TRUE, na.strings = "na")})
+names(temp) <- c("HMEC", "NHM", "MCF7", "HepG2")
+out <- bind_rows(temp, .id = "cellline")
+out <- out %>% mutate(class = factor(track, levels = names(color_key))) %>%
+    mutate(annotation = factor(recode_factor(annotation, !!!c(`N` = "Intergenic", `E` = "Exon", `3UTR` = "3UTR", `I` = "Intron", `TTS` = "TTS", `5UTR` = "5UTR", `P` = "Promoter")), levels = c("Promoter", "5UTR", "Exon", "Intron", "3UTR", "TTS", "Intergenic"))) %>%
+    mutate(negLogQval = -log10(qvalue), signif = negLogQval > -log10(0.05), cellline = factor(cellline, c("HMEC", "NHM", "MCF7", "HepG2")))
+
+pdf(file = "gat.pdf", width = 5, height = 4)
+ggplot(out, aes(x = annotation, y = l2fold, color = class, alpha = signif)) +
+    geom_point(size = 2) +
+    geom_hline(yintercept=0, linetype="dashed") +
+    scale_color_manual(values=color_key) +
+    facet_grid(cols = vars(cellline)) +
+    coord_cartesian(ylim = c(-2.4, 1.8)) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), axis.title.x = element_blank(), legend.position = "None")
 dev.off()
+
+write.table(out, file = "fig1d_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+### DF
+setwd("/mBE/GAT")
+color_key <- c(Active = "#0f9448", APL = "#e78ac3", ATAConly = "#E0AC69", Inactive = "#f15a2b", mBE = "#2b598b")
+
+out <- read.table("DF_tracks.GAT", header = TRUE, na.strings = "na")
+out <- out %>% mutate(class = factor(track, levels = names(color_key))) %>%
+    mutate(annotation = factor(recode_factor(annotation, !!!c(`N` = "Intergenic", `E` = "Exon", `3UTR` = "3UTR", `I` = "Intron", `TTS` = "TTS", `5UTR` = "5UTR", `P` = "Promoter")), levels = c("Promoter", "5UTR", "Exon", "Intron", "3UTR", "TTS", "Intergenic"))) %>%
+    mutate(negLogQval = -log10(qvalue), signif = negLogQval > -log10(0.05))
+pdf(file = "gat_DF.pdf", width = 2, height = 2.5)
+ggplot(out, aes(x = annotation, y = l2fold, color = class, alpha = signif)) +
+    geom_point(size = 2) +
+    geom_hline(yintercept=0, linetype="dashed") +
+    scale_color_manual(values=color_key) +
+    # coord_cartesian(ylim = c(-2.4, 1.8)) +
+    theme_bw() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), axis.title.x = element_blank(), legend.position = "None")
+dev.off()
+
+write.table(out, file = "fig3b_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 ###################### Fig 2a (eRNA estimation from RNAseq data) #################
 
@@ -316,6 +392,11 @@ pdf(file='HMEC_expr_smallRNA_ENCFF238UQC.pdf', width=5, height=5)
 plot(p1 + theme(legend.position = "none", axis.title.x=element_blank()))
 dev.off()
 
+setwd("/mBE/HMEC/cCREs")
+logRPKM <- readRDS("logRPKM.rds")
+logRPKM <- logRPKM %>% filter(dataset %in% c("enc.polyA", "enc.total"))
+level_key <- c(enc.polyA = "polyA", enc.total = "total")
+enhExprData <- logRPKM %>% mutate(RPKM = 2^(logRPKM), dataset = recode(dataset, !!!level_key), cellline = "HMEC") %>% select(-logRPKM)
 
 #####
 
@@ -373,6 +454,13 @@ p1 <- ggplot(logRPKM %>% filter(dataset == "SRR5228548") %>% mutate(logRPKM = 2^
 pdf(file='NHM_expr_totalRNA_SRR5228548.pdf', width=5, height=5)
 plot(p1 + theme(legend.position = "none", axis.title.x=element_blank()))
 dev.off()
+
+setwd("/mBE/NHM/cCREs")
+logRPKM <- readRDS("logRPKM.rds")
+logRPKM <- logRPKM %>% filter(dataset %in% c("S1"))
+level_key <- c(S1 = "total")
+enhExprData %<>% bind_rows(logRPKM %>% mutate(RPKM = 2^(logRPKM), dataset = recode(dataset, !!!level_key), cellline = "NHM") %>% select(-logRPKM))
+
 
 ##########
 
@@ -475,6 +563,13 @@ pdf(file='MCF7_expr_microRNA_ENCFF522BMH.pdf', width=5, height=5)
 plot(p1 + theme(legend.position = "none", axis.title.x=element_blank()))
 dev.off()
 
+setwd("/mBE/MCF7/cCREs")
+logRPKM <- readRDS("logRPKM.rds")
+logRPKM <- logRPKM %>% filter(dataset %in% c("enc.polyA"))
+level_key <- c(enc.polyA = "total")
+enhExprData %<>% bind_rows(logRPKM %>% mutate(RPKM = 2^(logRPKM), dataset = recode(dataset, !!!level_key), cellline = "MCF7") %>% select(-logRPKM))
+
+
 #######
 
 # wget -nv https://www.encodeproject.org/files/ENCFF642RLH/@@download/ENCFF642RLH.bam -O HepG2_small-rna.bam &
@@ -569,67 +664,18 @@ pdf(file='HepG2_expr_smallRNA_ENCFF642RLH.pdf', width=5, height=5)
 plot(p1 + theme(legend.position = "none", axis.title.x=element_blank()))
 dev.off()
 
-###################### Salmon ####################################
+setwd("/mBE/HepG2/cCREs")
+logRPKM <- readRDS("logRPKM.rds")
+logRPKM <- logRPKM %>% filter(dataset %in% c("enc.polyA", "enc.total"))
+level_key <- c(enc.polyA = "polyA", enc.total = "total")
+enhExprData %<>% bind_rows(logRPKM %>% mutate(RPKM = 2^(logRPKM), dataset = recode(dataset, !!!level_key), cellline = "HepG2") %>% select(-logRPKM))
 
-# salmon quant -i /references/gtfs/Hsapiens_index -l A -1 /mBE/Encode2021/HMEC/total-rna_R1.fastq.gz -2 /mBE/Encode2021/HMEC/total-rna_R2.fastq.gz -p 8 --validateMappings -o /mBE/HMEC1/salmon_quant/totalRNA 1> 1 2> 2 &
-# salmon quant -i /references/gtfs/Hsapiens_index -l A -1 /mBE/Encode2021/MCF7/polyA-rna_R1.fastq.gz -2 /mBE/Encode2021/MCF7/polyA-rna_R2.fastq.gz -p 8 --validateMappings -o /mBE/MCF7/salmon_quant/polyARNA 1> 1 2> 2 &
-# salmon quant -i /references/gtfs/Hsapiens_index -l A -1 /mBE/Encode2021/MCF7/polyA-rna_rep2_R1.fastq.gz -2 /mBE/Encode2021/MCF7/polyA-rna_rep2_R2.fastq.gz -p 8 --validateMappings -o /mBE/MCF7/salmon_quant/polyARNA_rep2 1> 1 2> 2 &
-# salmon quant -i /references/gtfs/Hsapiens_index -l A -1 /mBE/HepG2/total-rna_R1.fastq.gz -2 /mBE/HepG2/total-rna_R2.fastq.gz -p 8 --validateMappings -o /mBE/HepG2/salmon_quant/totalRNA 1> 1 2> 2 &
-# salmon quant -i /references/gtfs/Hsapiens_index -l A -1 /mBE/HepG2/total-rna_rep2_R1.fastq.gz -2 /mBE/HepG2/total-rna_rep2_R2.fastq.gz -p 8 --validateMappings -o /mBE/HepG2/salmon_quant/totalRNA_rep2 1> 1 2> 2 &
+level_key <- c(H3K4me3 = "APL")
+enhExprData <- enhExprData %>% mutate(newclass = recode(newclass, !!!level_key))
 
-# salmon quant -i /references/gtfs/Hsapiens_index -l A -1 /RNAseq-data/NHM/SRR5228548_1.fastq -2 /RNAseq-data/NHM/SRR5228548_2.fastq -p 8 --validateMappings -o /mBE/NHM/salmon_quant/totalRNA 1> 1 2> 2 &
-# salmon quant -i /references/gtfs/Hsapiens_index -l A -1 /RNAseq-data/NHM/SRR5228549_1.fastq -2 /RNAseq-data/NHM/SRR5228549_2.fastq -p 8 --validateMappings -o /mBE/NHM/salmon_quant/totalRNA_rep2 1> 1 2> 2 &
-
-# macroH2A1.1 = XM_005272132.2
-# https://www.ncbi.nlm.nih.gov/nuccore/XM_005272132.2
-# http://useast.ensembl.org/Homo_sapiens/Transcript/Summary?g=ENSG00000113648;r=5:135334410-135399211;t=ENST00000312469
-
-# macroH2A1.2 = NM_004893.3
-# https://www.ncbi.nlm.nih.gov/nuccore/NM_004893
-# http://useast.ensembl.org/Homo_sapiens/Transcript/Summary?g=ENSG00000113648;r=5:135334383-135399887;t=ENST00000304332
-
-setwd("/mBE/")
-
-files <- c(
-    "/mBE/HMEC1/salmon_quant/totalRNA/quant.sf", 
-    "/mBE/NHM/salmon_quant/totalRNA/quant.sf",
-    "/mBE/NHM/salmon_quant/totalRNA_rep2/quant.sf",
-    "/mBE/MCF7/salmon_quant/polyARNA/quant.sf",
-    "/mBE/MCF7/salmon_quant/polyARNA_rep2/quant.sf",
-    "/mBE/HepG2/salmon_quant/totalRNA/quant.sf",
-    "/mBE/HepG2/salmon_quant/totalRNA_rep2/quant.sf"
-)
-
-samplenames <- c("HMEC_Rep1", "NHM_Rep1", "NHM_Rep2", "MCF7_Rep1", "MCF7_Rep2", "HepG2_Rep1", "HepG2_Rep2")
-celllines <- c("HMEC", "NHM", "MCF7", "HepG2")
-
-exprs <- read.table(files[[1]], skip = 1) %>% select(V1) %>%
-    bind_cols(lapply(files, function(x){read.table(x, skip = 1) %>% select(V4)})) %>%
-    set_colnames(c("TXID", samplenames))
-
-TXs <- c("ENST00000312469.4", "ENST00000304332.4", "ENST00000373255.4")
-# TXs <- c("ENST00000312469.4", "ENST00000304332.4")
-variants <- c("mH2A1.1", "mH2A1.2", "mH2A2")
-mapping <- data.frame(TXID = TXs, variant = variants)
-
-exprs1 <- exprs %>% 
-    pivot_longer(!TXID, names_to = "sample", values_to = "TPM")
-exprs2 <- exprs1 %>%
-    separate(col = "sample", sep = "_", into = c("cellline", "replicate")) %>%
-    filter(TXID %in% TXs) %>% 
-    left_join(mapping) %>% 
-    mutate(variant = factor(variant, levels = variants), cellline = factor(cellline, levels = celllines))
-mu <- exprs2 %>% group_by(cellline, variant) %>% summarise(avgTPM = mean(TPM))
-
-pdf(file='macroVariants_RNAseq.pdf', width=8, height=6)
-ggplot() +
-    geom_col(data = mu, aes(x = variant, y = avgTPM, fill = variant)) +
-    geom_point(data = exprs2, aes(x = variant, y = TPM), color = "black") +
-    facet_grid(cols = vars(cellline)) +
-    # scale_y_continuous(trans='log10') +
-    theme_cowplot() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-dev.off()
-
+setwd("/data/")
+write.table(enhExprData %>% filter(dataset == "total") %>% select(-dataset), file = "fig2a_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+write.table(enhExprData %>% filter(dataset == "polyA") %>% select(-dataset), file = "suppfig2c_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 ###################### Fig 2b (TCGA RNAseq data) #################
 
@@ -686,6 +732,15 @@ pdf(file='HMEC_expr_TCGA.pdf', width=5, height=5)
 plot(p1 + theme(legend.position = "none", axis.title.x=element_blank()))
 dev.off()
 
+setwd("/mBE/HMEC1/cCREs")
+TCGAlogRPKM <- readRDS("TCGAlogRPKM.rds")
+level_key <- c(H3K4me3 = "APL")
+TCGAlogRPKM %<>% mutate(RPKM = 2^(logRPKM), newclass = recode(newclass, !!!level_key)) %>% select(-c(logRPKM, meanRPKM, peakname))
+
+setwd("/data/")
+write.table(TCGAlogRPKM, file = "fig2b_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+
 ####################### Super Enhancer prediction of HMEC CRE using LILY ########################
 
 # wget https://egg2.wustl.edu/roadmap/data/byFileType/peaks/consolidated/narrowPeak/E119-H3K27ac.narrowPeak.gz
@@ -725,7 +780,47 @@ dev.off()
 # wigToBigWig -clip MCF7-H3K27ac.wig /references/fastas/hg19.fa.fai MCF7-H3K27ac.bw
 # grep SE MCF7-H3K27ac.scores.bed > MCF7.lily.se.bed
 
-# intervene pairwise -i pairwise_1/* --filenames --compute frac --htype color --output pairwise_1/ --figsize 10 10
+###################### Supp Fig 1d and 2d (Pairwise overlap plots with Intervene) #################
+
+## Supp Fig 1d
+# mkdir HMEC
+# grep "Active" HMEC_classes.bed > HMEC/A_Active
+# grep "H3K4me3" HMEC_classes.bed > HMEC/B_APL.bed
+# grep "ATAConly" HMEC_classes.bed > HMEC/C_ATAConly.bed
+# grep "Inactive" HMEC_classes.bed > HMEC/D_Inactive.bed
+# grep "mBE" HMEC_classes.bed > HMEC/E_mBE.bed
+# cp HMEC.lily.se.bed HMEC/F_SE.bed
+# intervene pairwise -i HMEC/* --filenames --compute frac --htype color --output HMEC/ --figsize 10 10
+
+# mkdir NHM
+# grep "Active" NHM_classes.bed > NHM/A_Active.bed
+# grep "H3K4me3" NHM_classes.bed > NHM/B_APL.bed
+# grep "ATAConly" NHM_classes.bed > NHM/C_ATAConly.bed
+# grep "Inactive" NHM_classes.bed > NHM/D_Inactive.bed
+# grep "mBE" NHM_classes.bed > NHM/E_mBE.bed
+# cp NHM.lily.se.bed NHM/F_SE.bed
+# intervene pairwise -i NHM/* --filenames --compute frac --htype color --output NHM/ --figsize 10 10
+
+# mkdir MCF7
+# grep "Active" MCF7_classes.bed > MCF7/A_Active.bed
+# grep "H3K4me3" MCF7_classes.bed > MCF7/B_APL.bed
+# grep "ATAConly" MCF7_classes.bed > MCF7/C_ATAConly.bed
+# grep "Inactive" MCF7_classes.bed > MCF7/D_Inactive.bed
+# grep "mBE" MCF7_classes.bed > MCF7/E_mBE.bed
+# cp MCF7.lily.se.bed MCF7/F_SE.bed
+# intervene pairwise -i MCF7/* --filenames --compute frac --htype color --output MCF7/ --figsize 10 10
+
+# mkdir HepG2
+# grep "Active" HepG2_classes.bed > HepG2/A_Active.bed
+# grep "H3K4me3" HepG2_classes.bed > HepG2/B_APL.bed
+# grep "ATAConly" HepG2_classes.bed > HepG2/C_ATAConly.bed
+# grep "Inactive" HepG2_classes.bed > HepG2/D_Inactive.bed
+# grep "mBE" HepG2_classes.bed > HepG2/E_mBE.bed
+# cp HepG2.lily.se.bed HepG2/F_SE.bed
+# intervene pairwise -i HepG2/* --filenames --compute frac --htype color --output HepG2/ --figsize 10 10
+
+## Supp Fig 2d
+# intervene pairwise -i pairwise/* --filenames --compute frac --htype color --output pairwise/ --figsize 10 10
 
 ###################### Fig 2c (Expression of genes in HMEC - genes that are associated with classified CRE through GeneHancer link) #################
 
@@ -808,6 +903,12 @@ ggplot(proc_tbl, aes(x = reorder(category, RPKM, FUN = median), y = RPKM, fill =
     theme(legend.position = "none", axis.title.x=element_blank())
 dev.off()
 
+setwd("/mBE/HMEC1/cCREs")
+proc_tbl <- readRDS("proc_tbl.rds")
+
+setwd("/data/")
+write.table(proc_tbl, file = "fig2c_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 #################### Fig 2d #########################
 
 # mkdir FINAL_CLASSES/Active
@@ -828,7 +929,63 @@ dev.off()
 
 # intervene venn -i FINAL_CLASSES/Active/*.bed --names=NHM,HMEC,MCF7,HepG2 --output FINAL_CLASSES/Active/
 
-##################### Fig 2e,f ######################
+# intervene upset -i FINAL_CLASSES/Active/*.bed --names=NHM,HMEC,MCF7,HepG2 --output FINAL_CLASSES/Active/ --figsize 5 4
+# intervene upset -i FINAL_CLASSES/Inactive/*.bed --names=NHM,HMEC,MCF7,HepG2 --output FINAL_CLASSES/Inactive/ --figsize 5 4
+# intervene upset -i FINAL_CLASSES/ATAConly/*.bed --names=NHM,HMEC,MCF7,HepG2 --output FINAL_CLASSES/ATAConly/ --figsize 5 4
+# intervene upset -i FINAL_CLASSES/CRE/*.bed --names=NHM,HMEC,MCF7,HepG2 --output FINAL_CLASSES/CRE/ --figsize 5 4
+
+# intervene upset -i FINAL_CLASSES/mBE/*.bed --names=NHM,HMEC,MCF7,HepG2 --output FINAL_CLASSES/mBE/ --figsize 5 3 --order degree
+# intervene upset -i FINAL_CLASSES/APL/*.bed --names=NHM,HMEC,MCF7,HepG2 --output FINAL_CLASSES/APL/ --figsize 5 3
+
+setwd("/mBE/")
+library("UpSetR")
+
+pdf("upset_mBE.pdf", width=5, height=3, onefile=FALSE, useDingbats=FALSE)
+expressionInput <- c('HepG2'=11439,'MCF7'=7172,'MCF7&HepG2'=605,'HMEC'=15721,'HMEC&HepG2'=569,'HMEC&MCF7'=1542,'HMEC&MCF7&HepG2'=210,'NHM'=5243,'NHM&HepG2'=154,'NHM&MCF7'=196,'NHM&MCF7&HepG2'=20,'NHM&HMEC'=648,'NHM&HMEC&HepG2'=33,'NHM&HMEC&MCF7'=96,'NHM&HMEC&MCF7&HepG2'=15)
+upset(fromExpression(expressionInput), nsets=4, sets = rev(c("HMEC", "MCF7", "HepG2", "NHM")), nintersects=30, show.numbers="yes", main.bar.color="#ea5d4e", sets.bar.color="#317eab", empty.intersections=NULL, number.angles = 0, mainbar.y.label ="No. of Intersections", sets.x.label ="Set size", keep.order = TRUE, order.by = "freq")
+invisible(dev.off())
+
+pdf("upset_APL.pdf", width=5, height=3, onefile=FALSE, useDingbats=FALSE)
+expressionInput <- c('HepG2'=6185,'MCF7'=4937,'MCF7&HepG2'=1803,'HMEC'=4328,'HMEC&HepG2'=1335,'HMEC&MCF7'=2070,'HMEC&MCF7&HepG2'=1676,'NHM'=5679,'NHM&HepG2'=123,'NHM&MCF7'=38,'NHM&MCF7&HepG2'=27,'NHM&HMEC'=117,'NHM&HMEC&HepG2'=33,'NHM&HMEC&MCF7'=28,'NHM&HMEC&MCF7&HepG2'=18)
+upset(fromExpression(expressionInput), nsets=4, sets = rev(c("HMEC", "MCF7", "HepG2", "NHM")), nintersects=30, show.numbers="yes", main.bar.color="#ea5d4e", sets.bar.color="#317eab", empty.intersections=NULL, number.angles = 0, mainbar.y.label ="No. of Intersections", sets.x.label ="Set size", keep.order = TRUE, order.by = "freq")
+invisible(dev.off())
+
+pdf("upset_Active.pdf", width=4, height=3, onefile=FALSE, useDingbats=FALSE)
+expressionInput <- c('HepG2'=17760,'MCF7'=6013,'MCF7&HepG2'=877,'HMEC'=14078,'HMEC&HepG2'=684,'HMEC&MCF7'=1667,'HMEC&MCF7&HepG2'=376,'NHM'=6598,'NHM&HepG2'=236,'NHM&MCF7'=133,'NHM&MCF7&HepG2'=24,'NHM&HMEC'=816,'NHM&HMEC&HepG2'=70,'NHM&HMEC&MCF7'=155,'NHM&HMEC&MCF7&HepG2'=31)
+upset(fromExpression(expressionInput), nsets=4, sets = rev(c("HMEC", "MCF7", "HepG2", "NHM")), nintersects=30, show.numbers="yes", main.bar.color="#ea5d4e", sets.bar.color="#317eab", empty.intersections=NULL, number.angles = 0, mainbar.y.label ="No. of Intersections", sets.x.label ="Set size", keep.order = TRUE, order.by = "freq")
+invisible(dev.off())
+
+pdf("upset_ATAConly.pdf", width=4, height=3, onefile=FALSE, useDingbats=FALSE)
+expressionInput <- c('HepG2'=12232,'MCF7'=5634,'MCF7&HepG2'=233,'HMEC'=11668,'HMEC&HepG2'=126,'HMEC&MCF7'=236,'HMEC&MCF7&HepG2'=9,'NHM'=5734,'NHM&HepG2'=44,'NHM&MCF7'=9,'NHM&MCF7&HepG2'=1,'NHM&HMEC'=497,'NHM&HMEC&HepG2'=6,'NHM&HMEC&MCF7'=1,'NHM&HMEC&MCF7&HepG2'=0)
+upset(fromExpression(expressionInput), nsets=4, sets = rev(c("HMEC", "MCF7", "HepG2", "NHM")), nintersects=30, show.numbers="yes", main.bar.color="#ea5d4e", sets.bar.color="#317eab", empty.intersections=NULL, number.angles = 0, mainbar.y.label ="No. of Intersections", sets.x.label ="Set size", keep.order = TRUE, order.by = "freq")
+invisible(dev.off())
+
+pdf("upset_Inactive.pdf", width=4, height=3, onefile=FALSE, useDingbats=FALSE)
+expressionInput <- c('HepG2'=9509,'MCF7'=5314,'MCF7&HepG2'=304,'HMEC'=4785,'HMEC&HepG2'=564,'HMEC&MCF7'=1741,'HMEC&MCF7&HepG2'=137,'NHM'=8960,'NHM&HepG2'=22,'NHM&MCF7'=61,'NHM&MCF7&HepG2'=1,'NHM&HMEC'=43,'NHM&HMEC&HepG2'=0,'NHM&HMEC&MCF7'=9,'NHM&HMEC&MCF7&HepG2'=0)
+upset(fromExpression(expressionInput), nsets=4, sets = rev(c("HMEC", "MCF7", "HepG2", "NHM")), nintersects=30, show.numbers="yes", main.bar.color="#ea5d4e", sets.bar.color="#317eab", empty.intersections=NULL, number.angles = 0, mainbar.y.label ="No. of Intersections", sets.x.label ="Set size", keep.order = TRUE, order.by = "freq")
+invisible(dev.off())
+
+pdf("upset_CRE.pdf", width=4, height=3, onefile=FALSE, useDingbats=FALSE)
+expressionInput <- c('HepG2'=33500,'MCF7'=15807,'MCF7&HepG2'=6602,'HMEC'=36780,'HMEC&HepG2'=4235,'HMEC&MCF7'=9955,'HMEC&MCF7&HepG2'=6729,'NHM'=24164,'NHM&HepG2'=1732,'NHM&MCF7'=986,'NHM&MCF7&HepG2'=489,'NHM&HMEC'=5390,'NHM&HMEC&HepG2'=622,'NHM&HMEC&MCF7'=1422,'NHM&HMEC&MCF7&HepG2'=712)
+upset(fromExpression(expressionInput), nsets=4, sets = rev(c("HMEC", "MCF7", "HepG2", "NHM")), nintersects=30, show.numbers="yes", main.bar.color="#ea5d4e", sets.bar.color="#317eab", empty.intersections=NULL, number.angles = 0, mainbar.y.label ="No. of Intersections", sets.x.label ="Set size", keep.order = TRUE, order.by = "freq")
+invisible(dev.off())
+
+venndata1 <- data.frame(
+mBE = c('HepG2'=11439,'MCF7'=7172,'MCF7&HepG2'=605,'HMEC'=15721,'HMEC&HepG2'=569,'HMEC&MCF7'=1542,'HMEC&MCF7&HepG2'=210,'NHM'=5243,'NHM&HepG2'=154,'NHM&MCF7'=196,'NHM&MCF7&HepG2'=20,'NHM&HMEC'=648,'NHM&HMEC&HepG2'=33,'NHM&HMEC&MCF7'=96,'NHM&HMEC&MCF7&HepG2'=15), 
+APL = c('HepG2'=6185,'MCF7'=4937,'MCF7&HepG2'=1803,'HMEC'=4328,'HMEC&HepG2'=1335,'HMEC&MCF7'=2070,'HMEC&MCF7&HepG2'=1676,'NHM'=5679,'NHM&HepG2'=123,'NHM&MCF7'=38,'NHM&MCF7&HepG2'=27,'NHM&HMEC'=117,'NHM&HMEC&HepG2'=33,'NHM&HMEC&MCF7'=28,'NHM&HMEC&MCF7&HepG2'=18)
+)
+venndata2 <- data.frame(
+Active = c('HepG2'=17760,'MCF7'=6013,'MCF7&HepG2'=877,'HMEC'=14078,'HMEC&HepG2'=684,'HMEC&MCF7'=1667,'HMEC&MCF7&HepG2'=376,'NHM'=6598,'NHM&HepG2'=236,'NHM&MCF7'=133,'NHM&MCF7&HepG2'=24,'NHM&HMEC'=816,'NHM&HMEC&HepG2'=70,'NHM&HMEC&MCF7'=155,'NHM&HMEC&MCF7&HepG2'=31),
+ATAConly = c('HepG2'=12232,'MCF7'=5634,'MCF7&HepG2'=233,'HMEC'=11668,'HMEC&HepG2'=126,'HMEC&MCF7'=236,'HMEC&MCF7&HepG2'=9,'NHM'=5734,'NHM&HepG2'=44,'NHM&MCF7'=9,'NHM&MCF7&HepG2'=1,'NHM&HMEC'=497,'NHM&HMEC&HepG2'=6,'NHM&HMEC&MCF7'=1,'NHM&HMEC&MCF7&HepG2'=0),
+Inactive = c('HepG2'=9509,'MCF7'=5314,'MCF7&HepG2'=304,'HMEC'=4785,'HMEC&HepG2'=564,'HMEC&MCF7'=1741,'HMEC&MCF7&HepG2'=137,'NHM'=8960,'NHM&HepG2'=22,'NHM&MCF7'=61,'NHM&MCF7&HepG2'=1,'NHM&HMEC'=43,'NHM&HMEC&HepG2'=0,'NHM&HMEC&MCF7'=9,'NHM&HMEC&MCF7&HepG2'=0),
+CRE = c('HepG2'=33500,'MCF7'=15807,'MCF7&HepG2'=6602,'HMEC'=36780,'HMEC&HepG2'=4235,'HMEC&MCF7'=9955,'HMEC&MCF7&HepG2'=6729,'NHM'=24164,'NHM&HepG2'=1732,'NHM&MCF7'=986,'NHM&MCF7&HepG2'=489,'NHM&HMEC'=5390,'NHM&HMEC&HepG2'=622,'NHM&HMEC&MCF7'=1422,'NHM&HMEC&MCF7&HepG2'=712)
+)
+
+setwd("/data/")
+write.table(venndata1, file = "fig2d_data.tab", sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
+write.table(venndata2, file = "suppfig2e_data.tab", sep = "\t", row.names = TRUE, col.names = TRUE, quote = FALSE)
+
+##################### Fig 2e ######################
 
 # bedtools intersect -a HMEC_mBE.bed -b MCF7_mBE.bed -u > HMEC_MCF7_mBE.bed
 # bedtools intersect -a HMEC_APL.bed -b MCF7_APL.bed -u > HMEC_MCF7_APL.bed
@@ -855,8 +1012,6 @@ cistrome <- lapply(files, function(f){
 })
 names(cistrome) <- c("mBE", "APL" ,"Active", "Inactive", "ATAConly")
 cistrome <- bind_rows(cistrome, .id = "class")
-
-
 
 setwd("/mBE/")
 
@@ -896,6 +1051,9 @@ pdf(file='CistromeGO_KEGG.pdf', width=8, height=2)
 p1 | p2
 dev.off()
 
+cistromedata <- bind_rows(list(mBE = mBE, APL = APL), .id = "newclass") %>% select(-rowname)
+setwd("/data/")
+write.table(cistromedata, file = "fig2e_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 #################### Supp Fig 1a ####################
 
@@ -931,60 +1089,20 @@ p2 <- ggplot(cstats, aes(x = k, y = CH_score, color = cell.line, group = cell.li
 plot(p1 | p2)
 dev.off()
 
-################### Supp Fig 1b #######################
-
-# plotdata.rds from HMEC run of mBE_pipeline.sh classification algorithm
-plotdata <- readRDS("plotdata.rds")
-color_key <- c(Active = "#0f9448", H3K4me3 = "#e78ac3", ATAConly = "#E0AC69", mBE = "#2b598b", Inactive = "#f15a2b")
-p10 <- ggplot(plotdata %>% filter(ccre == "PLS")) +
-    ggrastr::rasterise(geom_point(aes(x=mH2A2, y=H3K27ac, color=newclass), size = 0.5, stroke = 0, shape = 16), dpi = 300) +
-    scale_colour_manual(values = color_key) +
-    theme_cowplot() +
-    theme(legend.position = "none") +
-    ggtitle("PLS")
-
-p11 <- ggplot(plotdata %>% filter(ccre == "dELS")) +
-    ggrastr::rasterise(geom_point(aes(x=mH2A2, y=H3K27ac, color=newclass), size = 0.2, stroke = 0, shape = 16), dpi = 300) +
-    scale_colour_manual(values = color_key) +
-    theme_cowplot() +
-    theme(legend.position = "none") +
-    ggtitle("dELS")
-
-p12 <- ggplot(plotdata %>% filter(ccre == "pELS")) +
-    ggrastr::rasterise(geom_point(aes(x=mH2A2, y=H3K27ac, color=newclass), size = 0.4, stroke = 0, shape = 16), dpi = 300) +
-    scale_colour_manual(values = color_key) +
-    theme_cowplot() +
-    theme(legend.position = "none") +
-    ggtitle("pELS")
-
-pdf(file='HMEC_PLS.pdf', width=3, height=3)
-plot(p10)
-dev.off()
-pdf(file='HMEC_dELS.pdf', width=3, height=3)
-plot(p11)
-dev.off()
-pdf(file='HMEC_pELS.pdf', width=3, height=3)
-plot(p12)
-dev.off()
-
-################### Supp Fig 2b ####################
-
-# bedtools intersect -loj -a HMEC-ATAC-K4m1-outBL.bed -b HMEC.lily.se.bed > peaks.SE.bed
-ses <- read.table("peaks.SE.bed")
-colnames(ses) <- c("chr", "start", "end", "peakname", "schr", "sstart", "send", "tag", "SEscore", "strand")
-plotdata <- plotdata %>% left_join(ses %>% select(peakname, tag, SEscore))
-
-seplot <- ggplot(plotdata) +
-    ggrastr::rasterise(geom_point(data = subset(plotdata, tag != "SE"), aes(x=mH2A2, y=H3K27ac), size = 0.5, stroke = 0, shape = 16, color = "#cccccc"), dpi = 300) +
-    new_scale_color() +
-    ggrastr::rasterise(geom_point(data = subset(plotdata %>% arrange(SEscore), tag == "SE"), aes(x=mH2A2, y=H3K27ac, color=SEscore), size = 0.8, stroke = 0, shape = 16), dpi = 300) +
-    scale_colour_gradient(low = "#b3e2cd", high = "black") + 
-    # facet_wrap(vars(newclass)) +
-    theme_cowplot()
-
-pdf(file='HMEC_SE.pdf', width=4.5, height=3)
-plot(seplot)
-dev.off()
+setwd("/data/")
+cstat_files <- c("/mBE/HMEC/cCREs/cstats.txt", 
+    "/mBE/NHM/cCREs/cstats.txt", 
+    "/mBE/MCF7/cCREs/cstats.txt", 
+    "/mBE/HepG2/cCREs/cstats.txt")
+cell_lines <- c("HMEC", "NHM", "MCF7", "HepG2")
+cstats <- lapply(cstat_files, read.table)
+names(cstats) <- cell_lines
+cstats <- bind_rows(cstats, .id = "cell.line") %>% 
+    set_colnames(c("cell.line", "k", "avg_silhouette_score", "CH_score")) %>%
+    mutate(k = factor(k, levels = as.character(2:11))) %>%
+    mutate(cell.line = factor(cell.line, levels = cell_lines)) %>%
+    select(-CH_score)
+write.table(cstats, file = "suppfig1a_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 ################## Supp Fig 2c and 2d (Build ChromHMM model and enrichment analysis) ###
 
@@ -1036,7 +1154,9 @@ ggplot(counts %>% filter(pos == 50)) +
     theme(axis.title.y = element_blank(), axis.title.x = element_blank())
 dev.off()
 
-
+counts %<>% filter(pos == 50) %>% ungroup() %>% select(c(chstate, newclass, prop))
+setwd("/data/")
+write.table(counts, file = "suppfig2b_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 
 

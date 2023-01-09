@@ -204,6 +204,14 @@ Idents(sobj_sub) <- "celltype"
 (umaps(sobj_sub) / umaps1(sobj_sub) / p2) + plot_layout(heights = c(7, 7, 1), nrow = 3)
 dev.off()
 
+setwd("/data/")
+write.table(data.frame(sobj_sub[["wnn.umap"]][[]], Sample = factor(sobj_sub$sample)), file = "fig7b_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+write.table(data.frame(sobj_sub[["wnn.umap"]][[]], Celltype = Idents(sobj_sub)), file = "fig7c_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+write.table(celltype.table1, file = "suppfig8b_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+setwd("/data/")
+write.table(data.frame(sobj_sub[["umap.rna"]][[]], sobj_sub[["umap.atac"]][[]], Sample = factor(sobj_sub$sample), Celltype = Idents(sobj_sub)), file = "suppfig8a_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 ###########
 
 sobj_sub <- readRDS("aggr_filtered_sub.rds")
@@ -277,6 +285,10 @@ pdf("MaSC_scMULT_conns_violin.pdf", width=4, height=5)
 p3
 dev.off()
 
+setwd("/data/")
+write.table(conns_per_peak, file = "fig7e_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+
 ####################################
 
 Idents(sobj_sub) <- "clust0.1"
@@ -337,6 +349,9 @@ p3 <- ggplot(fishers, aes(y = neg_log10_pval)) +
 plot(p0 + guide_area() + p1 + plot_spacer() + plot_layout(nrow = 2, ncol = 2, widths = c(10, 2), heights = c(3, 15), guides = "collect") + plot_annotation(theme = theme(plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"))))
 dev.off()
 
+setwd("/data/")
+write.table(fishers, file = "fig7f_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 ./fisherTestMusB.py --extreme 32 --tfLimit 65 --pvalueThreshold 0.05 --nClusters 3 --tfBed remap2022_nr_macs2_mm10_v1_0_minusTSS.bed 1> Clust3_minusTSS.log 2> 2 &
 cp /mBE/fishers_3Clusters.csv /mBE/MULT/Fishers/fishers_3Clusters_minusTSS.csv
 
@@ -371,16 +386,17 @@ p3 <- ggplot(fishers, aes(y = neg_log10_pval)) +
 plot(p0 + guide_area() + p1 + plot_spacer() + plot_layout(nrow = 2, ncol = 2, widths = c(10, 2), heights = c(3, 15), guides = "collect") + plot_annotation(theme = theme(plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"))))
 dev.off()
 
+setwd("/data/")
+write.table(fishers, file = "suppfig8e_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 #########################
-
 
 setwd("/mBE/MULT/")
 sobj_sub <- readRDS("aggr_filtered_sub.rds")
 
-TFs_mouse <- c("Sox10", "Sox9", "Sox4", "Nf1", "Trp63", "Tead4", "Elf5", "Foxa1", "Fosl1", "Atf3", "Fosl2", "Batf", "Jun", "Grhl2", "Zmynd8")
+TFs_mouse <- c("Sox10", "Sox9", "Sox4", "Nf1", "Trp63", "Tead4", "Elf5", "Foxa1", "Fosl1", "Atf3", "Fosl2", "Batf", "Jun", "Grhl2")
 TFs_human <- c("SOX10", "SOX9", "SOX4", "NFIX", "TP63", "TEAD4", "ELF5", "FOXA1", "FOSL1", "ATF3", "FOSL2", "BATF", "JUN", "GRHL2")
-TFs_remap <- c("SOX10", "SOX9", "TEAD4", "ELF5", "FOXA1", "FOSL1", "ATF3", "FOSL2", "BATF", "JUN", "GRHL2", "ZMYND8")
+TFs_remap <- c("SOX10", "SOX9", "TEAD4", "ELF5", "FOXA1", "FOSL1", "ATF3", "FOSL2", "BATF", "JUN", "GRHL2")
 DefaultAssay(sobj_sub) <- "hATAC"
 motifs <- ConvertMotifID(sobj_sub, name = TFs_human)
 DefaultAssay(sobj_sub) <- "ATAC"
@@ -426,7 +442,9 @@ dams <- dams %>% bind_rows(
     set_colnames(c("celltype", "gene")) %>% 
     mutate(enrichment = 0, type_gene = paste0(celltype, "_", gene)) %>% 
     filter(!(type_gene %in% dams$type_gene)))
-dams <- dams %>% mutate(gene = factor(gene, levels = rev(motifs)), celltype = factor(celltype, levels(sobj_sub$celltype)))
+DefaultAssay(sobj_sub) <- "hATAC"
+TFs <- ConvertMotifID(sobj_sub, id = dams$gene)
+dams <- dams %>% mutate(TF = factor(TFs, levels = rev(TFs_human)), gene = factor(gene, levels = rev(motifs)), celltype = factor(celltype, levels(sobj_sub$celltype)))
 
 pdf(file='MaSC_scMULT_selectTFs_WTvsKO.pdf', width=12, height=6)
 degs1 <- degs %>% mutate(enrichment = case_when(enrichment > 0 ~ enrichment, TRUE ~ 0))
@@ -480,6 +498,10 @@ dev.off()
 # )
 # dev.off()
 
+setwd("/data/")
+write.table(degs, file = "fig7g_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+write.table(dams, file = "fig7h_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 
 ##########################
 
@@ -511,6 +533,9 @@ p3 <- DotPlot(sobj_sub, assay = "RNA", features = rev(plotmarkers), cluster.iden
 p1 | p2 | p3
 dev.off()
 
+setwd("/data/")
+write.table(t(sobj_sub[["RNA"]][c("Krt14", "Itgb1", "Krt8", "Krt18", "Pgr", "Esr1", "Gata3", "Foxa1", "Ltf", "Csn1s2a", "Csn2", "Csn3", "Cd14", "Cd55", "Aldh1a3", "Axl")]), file = "suppfig8c_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
 ##########
 
 pdf("MaSC_scMULT_markers_featurePlots.pdf", width=16, height=8)
@@ -518,6 +543,9 @@ DefaultAssay(sobj_sub) <- "RNA"
 genes <- c("Krt14", "Axl", "Csn3", "Cd14", "Krt8", "Elf5", "Pgr", "Esr1")
 FeaturePlot(sobj_sub, features = genes, reduction = 'wnn.umap', pt.size = 0.4, raster=FALSE, order = TRUE, ncol = 4) & scale_color_scico(palette = 'lajolla')
 dev.off()
+
+setwd("/data/")
+write.table(data.frame(t(sobj_sub[["RNA"]][c("Krt14", "Axl", "Csn3", "Cd14", "Krt8", "Elf5", "Pgr", "Esr1")])) %>% bind_cols(sobj_sub[["wnn.umap"]][[]]), file = "suppfig8d_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 ##############
 

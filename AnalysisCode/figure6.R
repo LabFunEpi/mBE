@@ -48,7 +48,7 @@ color_key <- c(Active = "#0f9448", H3K4me3 = "#e78ac3", ATAConly = "#E0AC69", In
 classified <- read.table("classified.bed") %>% set_colnames(c("chr", "start", "end", "peakname", "name", "ccre", "newclass"))
 plotdata <- plotdata %>% bind_cols(classified %>% select(newclass)) %>% mutate(newclass=factor(newclass, levels = myclasses)) %>% select(-c(chr, start, end)) %>% left_join(origpeaks)
 
-#######################################
+###################### Fig 6a ######################
 
   # Active  H3K4me3 ATAConly Inactive
    # 16341     5194    13921    14875
@@ -122,96 +122,14 @@ p6 <- ggplot(data = plotdata1, mapping = aes(x=BRD4, y=m2BRD4)) +
     coord_cartesian(xlim = c(0, 900), ylim = c(0, 900)) +
     theme(legend.position = "none")
 
-pdf(file='diff-dotplot-temp.pdf', width=12, height=8)
+pdf(file='diff-dotplot.pdf', width=12, height=8)
 plot((p1 | p2 | p3) / (p4 | p5 | p6)) 
 dev.off()
 
-theme_set(theme_cowplot() + theme(axis.title = element_blank(), axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)))
-plotdata1 <- plotdata %>% 
-    select(ATAC, m2ATAC) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal")
-p1 <- ggplot(plotdata1, mapping = aes(x=condition, y=signal)) +
-    geom_boxplot(outlier.shape = NA) +
-    scale_y_continuous(trans="log2", breaks = trans_breaks("log2", function(x) 2^x), labels = trans_format("log2", math_format(2^.x))) +
-    ggtitle("ATAC")
-plotdata1 <- plotdata %>% 
-    select(mH2A2, m2mH2A2) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal")
-p2 <- ggplot(plotdata1, mapping = aes(x=condition, y=signal)) +
-    geom_boxplot(outlier.shape = NA) +
-    scale_y_continuous(trans="log2", breaks = trans_breaks("log2", function(x) 2^x), labels = trans_format("log2", math_format(2^.x))) +
-    ggtitle("mH2A2")
-plotdata1 <- plotdata %>% 
-    select(H3K4me1, m2H3K4me1) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal")
-p3 <- ggplot(plotdata1, mapping = aes(x=condition, y=signal)) +
-    geom_boxplot(outlier.shape = NA) +
-    scale_y_continuous(trans="log2", breaks = trans_breaks("log2", function(x) 2^x), labels = trans_format("log2", math_format(2^.x))) +
-    ggtitle("H3K4me1")
-plotdata1 <- plotdata %>% 
-    select(H3K27ac, m2H3K27ac) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal")
-p4 <- ggplot(plotdata1, mapping = aes(x=condition, y=signal)) +
-    geom_boxplot(outlier.shape = NA) +
-    scale_y_continuous(trans="log2", breaks = trans_breaks("log2", function(x) 2^x), labels = trans_format("log2", math_format(2^.x))) +
-    ggtitle("H3K27ac")
-plotdata1 <- plotdata %>% 
-    select(p300, m2p300) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal")
-p5 <- ggplot(plotdata1, mapping = aes(x=condition, y=signal)) +
-    geom_boxplot(outlier.shape = NA) +
-    scale_y_continuous(trans="log2", breaks = trans_breaks("log2", function(x) 2^x), labels = trans_format("log2", math_format(2^.x))) +
-    ggtitle("p300")
-plotdata1 <- plotdata %>% 
-    select(BRD4, m2BRD4) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal")
-p6 <- ggplot(plotdata1, mapping = aes(x=condition, y=signal)) +
-    geom_boxplot(outlier.shape = NA) +
-    scale_y_continuous(trans="log2", breaks = trans_breaks("log2", function(x) 2^x), labels = trans_format("log2", math_format(2^.x))) +
-    ggtitle("BRD4")
-pdf(file='diff-boxplot-temp.pdf', width=8, height=4)
-(p1 | p2 | p3 | p4 | p5 | p6)
-dev.off()
+setwd("/data/")
+write.table(plotdata, file = "fig6a_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
-theme_set(theme_cowplot() + theme(axis.title = element_blank(), axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)))
-statdata <- plotdata %>% 
-    select(ATAC, m2ATAC) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal") %>%
-    mutate(mark = "ATAC") %>%
-    bind_rows(plotdata %>% 
-    select(mH2A2, m2mH2A2) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal") %>%
-    mutate(mark = "mH2A2")) %>%
-    bind_rows(plotdata %>% 
-    select(H3K4me1, m2H3K4me1) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal") %>%
-    mutate(mark = "H3K4me1")) %>%
-    bind_rows(plotdata %>% 
-    select(H3K27ac, m2H3K27ac) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal") %>%
-    mutate(mark = "H3K27ac")) %>%
-    bind_rows(plotdata %>% 
-    select(p300, m2p300) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal") %>%
-    mutate(mark = "p300")) %>%
-    bind_rows(plotdata %>% 
-    select(BRD4, m2BRD4) %>% 
-    set_colnames(c("CTRL", "m2OE")) %>%
-    pivot_longer(everything(), names_to = "condition", values_to = "signal") %>%
-    mutate(mark = "BRD4"))
-
-stats <- compare_means(signal ~ condition, data = statdata, group.by = "mark", paired = TRUE)
+###################### Fig 6b ######################
 
 plotdata1 <- plotdata %>% 
     mutate(ATAC = m2ATAC/ATAC, mH2A2 = m2mH2A2/mH2A2, H3K4me1 = m2H3K4me1/H3K4me1, H3K27ac = m2H3K27ac/H3K27ac, p300 = m2p300/p300, BRD4 = m2BRD4/BRD4) %>%
@@ -231,46 +149,90 @@ pdf(file='231L_ChIPSeq_m2OEvsGFP_boxplots.pdf', width=2.5, height=4.5)
 p1
 dev.off()
 
+plotdata1 <- plotdata %>% 
+    mutate(ATAC = m2ATAC/ATAC, mH2A2 = m2mH2A2/mH2A2, H3K4me1 = m2H3K4me1/H3K4me1, H3K27ac = m2H3K27ac/H3K27ac, p300 = m2p300/p300, BRD4 = m2BRD4/BRD4) %>%
+    select(ATAC, mH2A2, H3K4me1, H3K27ac, p300, BRD4)
+setwd("/data/")
+write.table(plotdata1, file = "fig6b_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
-#######################################
+########################## Fig 6c ##################################
+
+wd <- "/mforge/research/labs/experpath/maia/m237371/mBE/231L/cCREs"
+
+setwd(wd)
+signal_files <- c("BRD4_GFP.BRD4CR", "BRD4_m2OE.BRD4CR")
+signals <- c("BRD4_GFP", "BRD4_m2OE")
+rawdatas <- lapply(signal_files, read.table, skip=3)
+rawdatas <- lapply(rawdatas, function(x){x %>% mutate(across(everything(), ~replace_na(.x, 0)))})
+print(lapply(rawdatas, dim))
+
+# Transformations
+datas <- rawdatas
+mydata <- bind_cols(lapply(datas, function(x){x %>% rowSums(.)}))
+colnames(mydata) <- signals
+
+peaks <- read.table("BRD4CR.sorted.bed") %>%
+    select(V1:V4) %>%
+    set_colnames(c("chr", "start", "end", "peakname"))
+peakstags <- bind_rows(read.table("BRD4SE_CR") %>%
+    select(V1:V4) %>%
+    set_colnames(c("chr", "start", "end", "peakname")) %>%
+    mutate(tag = "SE"),
+    read.table("BRD4SC_CR") %>%
+    select(V1:V4) %>%
+    set_colnames(c("chr", "start", "end", "peakname")) %>%
+    mutate(tag = "Co"),
+    read.table("BRD4LC_CR") %>%
+    select(V1:V4) %>%
+    set_colnames(c("chr", "start", "end", "peakname")) %>%
+    mutate(tag = "Co"),
+    read.table("BRD4LE_CR") %>%
+    select(V1:V4) %>%
+    set_colnames(c("chr", "start", "end", "peakname")) %>%
+    mutate(tag = "LE"))
+peaks <- peaks %>% left_join(peakstags %>% select(peakname, tag))
+
+mydata <- mydata %>% bind_cols(peaks)
+
+   # Co    LE    SE
+# 21836 27684  2151
+library(ggpmisc)
+plotdata1 <- mydata
+p1 <- ggplot(data = plotdata1, mapping = aes(x=BRD4_GFP, y=BRD4_m2OE, color=tag)) +
+    ggrastr::rasterise(geom_point(size = 0.5, stroke = 0, shape = 16), dpi = 400) +
+    geom_abline(intercept = 0, slope = 1, linetype=3) +
+    stat_poly_eq(formula = y ~ x, aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), parse = TRUE) + 
+    stat_fit_glance(method = 'lm', method.args = list(formula = y ~ x), geom = 'text', aes(label = paste("P-value = ", signif(..p.value.., digits = 4), sep = "")), label.y = "bottom", label.x = 'right', size = 3) +
+    geom_smooth(method='lm', se=FALSE, fullrange=TRUE, lwd=0.5) +
+    guides(colour = guide_legend(override.aes = list(size=5))) +
+    coord_cartesian(xlim = c(0, 1500), ylim = c(0, 1500)) +
+    theme_cowplot() + 
+    theme(legend.position = "right")
+
+pdf(file='231L_ChIPseq_BRD4_short_long_common.pdf', width=4.5, height=4)
+p1
+dev.off()
+
+plotdata1 <- mydata %>% select(tag, BRD4_GFP, BRD4_m2OE)
+setwd("/data/")
+write.table(plotdata1, file = "fig6c_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+########################## Fig 6d ##############################
 
 plotdata1 <- plotdata %>% 
     select(ATAC, m2ATAC, mH2A2, m2mH2A2, H3K4me1, m2H3K4me1, H3K27ac, m2H3K27ac, p300, m2p300, BRD4, m2BRD4, newclass, peakname, chr, start, end, ccre) %>%
     mutate(mH2A2 = case_when(plotdata$mH2A2 == 0 ~ 1, TRUE ~ plotdata$mH2A2)) %>% 
-    mutate(ATAC_FC = log2(m2ATAC/ATAC), mH2A2_FC = log2(m2mH2A2/mH2A2), H3K4me1_FC = log2(m2H3K4me1/H3K4me1), H3K27ac_FC = log2(m2H3K27ac/H3K27ac), p300_FC = log2(m2p300/p300), BRD4_FC = log2(m2BRD4/BRD4)) %>%
-    mutate(ATAC_cl = case_when(ATAC_FC > log2(1.5) ~ "G", ATAC_FC < -log2(1.5) ~ "L", TRUE ~ "N")) %>%
-    mutate(mH2A2_cl = case_when(mH2A2_FC > log2(3) ~ "G", mH2A2_FC < -log2(1.5) ~ "L", TRUE ~ "N")) %>%
-    mutate(H3K4me1_cl = case_when(H3K4me1_FC > log2(1.5) ~ "G", H3K4me1_FC < -log2(1.5) ~ "L", TRUE ~ "N")) %>%
-    mutate(H3K27ac_cl = case_when(H3K27ac_FC > log2(1.5) ~ "G", H3K27ac_FC < -log2(1.5) ~ "L", TRUE ~ "N")) %>%
-    mutate(p300_cl = case_when(p300_FC > log2(1.5) ~ "G", p300_FC < -log2(1.5) ~ "L", TRUE ~ "N")) %>%
+    mutate(BRD4_FC = log2(m2BRD4/BRD4)) %>%
     mutate(BRD4_cl = case_when(BRD4_FC > log2(1.5) ~ "G", BRD4_FC < -log2(1.5) ~ "L", TRUE ~ "N"))
 
-write.table(plotdata1 %>% filter(ATAC_cl == "G") %>% select(chr, start, end, peakname) %>% mutate(group = "Gain"), file = "ATAC_Gain", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(ATAC_cl == "N") %>% select(chr, start, end, peakname) %>% mutate(group = "Neut"), file = "ATAC_Neut", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(ATAC_cl == "L") %>% select(chr, start, end, peakname) %>% mutate(group = "Loss"), file = "ATAC_Loss", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(mH2A2_cl == "G") %>% select(chr, start, end, peakname) %>% mutate(group = "Gain"), file = "mH2A2_Gain", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(mH2A2_cl == "N") %>% select(chr, start, end, peakname) %>% mutate(group = "Neut"), file = "mH2A2_Neut", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(mH2A2_cl == "L") %>% select(chr, start, end, peakname) %>% mutate(group = "Loss"), file = "mH2A2_Loss", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(H3K4me1_cl == "G") %>% select(chr, start, end, peakname) %>% mutate(group = "Gain"), file = "H3K4me1_Gain", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(H3K4me1_cl == "N") %>% select(chr, start, end, peakname) %>% mutate(group = "Neut"), file = "H3K4me1_Neut", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(H3K4me1_cl == "L") %>% select(chr, start, end, peakname) %>% mutate(group = "Loss"), file = "H3K4me1_Loss", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(H3K27ac_cl == "G") %>% select(chr, start, end, peakname) %>% mutate(group = "Gain"), file = "H3K27ac_Gain", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(H3K27ac_cl == "N") %>% select(chr, start, end, peakname) %>% mutate(group = "Neut"), file = "H3K27ac_Neut", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(H3K27ac_cl == "L") %>% select(chr, start, end, peakname) %>% mutate(group = "Loss"), file = "H3K27ac_Loss", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(p300_cl == "G") %>% select(chr, start, end, peakname) %>% mutate(group = "Gain"), file = "p300_Gain", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(p300_cl == "N") %>% select(chr, start, end, peakname) %>% mutate(group = "Neut"), file = "p300_Neut", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-write.table(plotdata1 %>% filter(p300_cl == "L") %>% select(chr, start, end, peakname) %>% mutate(group = "Loss"), file = "p300_Loss", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
 write.table(plotdata1 %>% filter(BRD4_cl == "G") %>% select(chr, start, end, peakname) %>% mutate(group = "Gain"), file = "BRD4_Gain", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
 write.table(plotdata1 %>% filter(BRD4_cl == "N") %>% select(chr, start, end, peakname) %>% mutate(group = "Neut"), file = "BRD4_Neut", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
 write.table(plotdata1 %>% filter(BRD4_cl == "L") %>% select(chr, start, end, peakname) %>% mutate(group = "Loss"), file = "BRD4_Loss", sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
 
 library(ReMapEnrich) 
-BRD4_Gain <- bedToGranges("BRD4_Gain")
 BRD4_Loss <- bedToGranges("BRD4_Loss")
 remapCatalog <- bedToGranges("/public_data/remap2022_nr_macs2_hg19_v1_0.bed")
 
-BRD4_Gain_en <- enrichment(BRD4_Gain, remapCatalog)
-BRD4_Gain_en <- BRD4_Gain_en %>% mutate(category = factor(category, levels = rev(BRD4_Gain_en$category)))
 BRD4_Loss_en <- enrichment(BRD4_Loss, remapCatalog)
 BRD4_Loss_en <- BRD4_Loss_en %>% mutate(category = factor(category, levels = rev(BRD4_Loss_en$category)))
 
@@ -282,6 +244,36 @@ p2 <- ggplot(BRD4_Loss_en %>% slice_head(n = 10)) +
     ggtitle("BRD4 Lost Peaks - ReMapEnrich")
 p2
 dev.off()
+
+setwd("/data/")
+write.table(BRD4_Loss_en %>% slice_head(n = 10) %>% select(mapped.peaks.ratio, category, nb.overlaps, q.significance), file = "fig6d_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
+
+########################## Supp Fig 6b ##############################
+# BRD4=
+# m2BRD4=
+# ab=1000
+# computeMatrix reference-point -S ${BRD4} ${m2BRD4} \
+                              # -R BRD4_Loss BRD4_Neut BRD4_Gain \
+                              # --referencePoint center \
+                              # -b ${ab} -a ${ab} -p 16 \
+                              # --missingDataAsZero \
+                              # --outFileNameMatrix BRD4gainloss \
+                              # --outFileName BRD4gainloss.tab.gz \
+                              # --sortRegions keep
+# plotHeatmap -m BRD4gainloss.tab.gz --colorList 'white,blue' --sortRegions descend --sortUsing mean --heatmapHeight 14 -out 231L_ChIPseq_BRD4gainloss_heatmap.pdf
+
+########################## Supp Fig 6c ##############################
+
+# ZMYND8=${sharedmBE}/ZMYND8/GSM2913937_X_1Z81.normalized.bigWig
+# peaks=/mBE/231L/231L-ATAC-K4m1-outBL.bed
+# ab=1000
+# computeMatrix reference-point -S ${ZMYND8} \
+                              # -R ${peaks} \
+                              # --referencePoint center \
+                              # -b ${ab} -a ${ab} -p 16 \
+                              # --outFileNameMatrix ZMYND8 \
+                              # --outFileName ZMYND8.tab.gz \
+                              # --outFileSortedRegions ZMYND8_avail.bed
 
 signals <- c("ZMYND8")
 rawdatas <- lapply(signals, read.table, skip=3)
@@ -308,22 +300,44 @@ plotdata <- plotdata %>% left_join(BRD4_peak_classes %>% select(peakname, BRD4st
 
 plotdata <- plotdata %>% mutate(across(c("ZMYND8"), function(x) {log(((x*10000)/sum(x))+0.01)}))
 plotdata <- plotdata %>% mutate(across(c("ZMYND8"), function(x) {(x-mean(x))/sd(x)}))
-pdf(file='231L_ChIPSeq_ZMYND8_boxplot.pdf', width=6, height=6)
-p1 <- ggplot(plotdata, aes(x = newclass, y = ZMYND8)) +
+pdf(file='231L_ChIPSeq_ZMYND8_boxplot.pdf', width=3, height=6)
+p1 <- ggplot(plotdata, aes(x = BRD4status, y = ZMYND8)) +
     geom_boxplot(outlier.alpha = 0.1, outlier.shape = 1, outlier.size = 0.3) +
     # scale_y_continuous(trans=pseudolog10_trans) +
     theme_cowplot() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-p2 <- ggplot(plotdata, aes(x = BRD4status, y = ZMYND8)) +
-    geom_boxplot(outlier.alpha = 0.1, outlier.shape = 1, outlier.size = 0.3) +
-    # scale_y_continuous(trans=pseudolog10_trans) +
-    theme_cowplot() +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-p1 | p2
+p1
 dev.off()
 
+setwd("/data/")
+write.table(plotdata %>% select(BRD4status, ZMYND8), file = "suppfig6c_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
+########################## Fig 6g ##############################
 
+all_signals <- read.table(file = "/mBE/all_signals.tab")
+colnames(all_signals) <- c("CellLine", "newclass", "mark", "z")
+plotdata <- all_signals %>% filter(!(mark %in% c("ATAC", "H4K12acVeh", "H4K12acE2", "H4K12ac"))) %>% 
+    mutate(mark = factor(mark, levels = c("H3K27ac", "H3K4me1", "H2Az", "H3K4me3", "H3K27me3", "mH2A1", "mH2A2", "CTCF"))) %>%
+    mutate(CellLine = factor(CellLine, levels = c("HMEC", "NHM", "MCF7", "231L", "HepG2")))
 
+color_key <- c(Active = "#0f9448", APL = "#e78ac3", `ATAC-only` = "#E0AC69", mBE = "#2b598b", Inactive = "#f15a2b")
+plotdata <- all_signals %>% filter(mark %in% c("H4K12ac", "H4K12acVeh")) %>% 
+    mutate(mark = replace(mark, mark=="H4K12acVeh", "H4K12ac")) %>%
+    mutate(newclass=replace(newclass, newclass=="H3K4me3", "APL")) %>%
+    mutate(newclass=replace(newclass, newclass=="ATAConly", "ATAC-only")) %>%
+    mutate(CellLine = factor(case_when(CellLine == "HMEC" ~ "HME1", CellLine == "NHM" ~ "Hmel", CellLine == "MCF7" ~ "MCF7", TRUE ~ CellLine), levels = c("HME1", "Hmel", "MCF7"))) %>%
+    mutate(newclass = factor(newclass, levels = c("Active", "APL", "ATAC-only", "Inactive", "mBE")))
+pdf(file='H4K12ac_boxplots.pdf', width=4, height=4)
+ggplot(plotdata, aes(x = newclass, y = z, fill = newclass)) +
+    facet_grid(cols = vars(CellLine)) +
+    geom_boxplot(outlier.alpha = 0.1, outlier.shape = 1, outlier.size = 0.3) +
+    coord_cartesian(ylim = c(-4, 4)) +
+    scale_fill_manual(values = color_key) +
+    theme_cowplot() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), legend.position = "none")
+dev.off()
+
+setwd("/data/")
+write.table(plotdata %>% select(-mark), file = "fig6g_data.tab", sep = "\t", row.names = FALSE, col.names = TRUE, quote = FALSE)
 
 
